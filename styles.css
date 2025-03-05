@@ -14,6 +14,7 @@ body {
     min-height: 100vh;
     color: #fff;
     text-align: center;
+    font-size: 16px;
 }
 
 .logo-container {
@@ -83,25 +84,11 @@ h2 {
     animation: fingerprint-pulse 2s infinite;
 }
 
-.scanning-lines {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-}
-
 .scanning-lines .line {
     position: absolute;
     width: 100%;
     height: 2px;
-    background: linear-gradient(
-        to right,
-        transparent 0%,
-        var(--neon-cyan) 50%,
-        transparent 100%
-    );
+    background: linear-gradient(to right, transparent 0%, var(--neon-cyan) 50%, transparent 100%);
     animation: scan 2s infinite;
     opacity: 0.3;
 }
@@ -143,14 +130,21 @@ h2 {
     100% { transform: translateX(100%); }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 768px) {
     body { padding: 0.5rem; }
     .logo-container { margin: 0.5rem 0; }
-    h2 { margin: 0 0.5rem 0.5rem; }
+    h2 { margin: 0 0.5rem 0.5rem; font-size: clamp(0.8rem, 4vw, 1rem); }
+    .camera-container { width: 90vw; }
     .social-container { gap: 1.5rem; }
+    .social-icon { width: 35px; height: 35px; }
 }
 
-/* Estilos para el modal */
+@media (max-width: 480px) {
+    .camera-container { width: 100vw; height: auto; aspect-ratio: 1; }
+    .social-container { gap: 1rem; }
+    .social-icon { width: 30px; height: 30px; }
+}
+
 .modal {
     position: fixed;
     top: 50%;
@@ -162,7 +156,8 @@ h2 {
     box-shadow: 0 0 20px var(--neon-cyan);
     z-index: 1000;
     color: #fff;
-    display: none;
+    width: 90%;
+    max-width: 400px;
 }
 
 .modal input {
@@ -180,4 +175,9 @@ h2 {
     padding: 5px 10px;
     border-radius: 5px;
     cursor: pointer;
+}
+
+@media (max-width: 480px) {
+    .modal { padding: 15px; }
+    .modal input { width: 100%; }
 }
