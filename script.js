@@ -22,15 +22,31 @@ class QRScanner {
 
     async startCamera() {
         try {
+            const constraints = { video: { facingMode: 'environment' } };
+            const supportedConstraints = navigator.mediaDevices.getSupportedConstraints();
+
+            // Configuración de enfoque automático si es soportada
+            if (supportedConstraints.focusMode) {
+                constraints.video.focusMode = 'continuous';
+            }
+            if (supportedConstraints.focusDistance) {
+                constraints.video.focusDistance = { ideal: 0.1 }; // Distancia ideal de 10 cm para QR
+            }
+            constraints.video.width = { ideal: Math.min(window.innerWidth, 1280) };
+            constraints.video.height = { ideal: Math.min(window.innerHeight, 720) };
+
+            // Configuraciones avanzadas para mejor calidad de imagen
+            if (supportedConstraints.whiteBalanceMode && supportedConstraints.exposureMode) {
+                constraints.video.advanced = [{
+                    focusMode: 'continuous',
+                    whiteBalanceMode: 'auto',
+                    exposureMode: 'auto'
+                }];
+            }
+
             this.cameraContainer.classList.add('active');
-            this.stream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    facingMode: 'environment',
-                    width: { ideal: Math.min(window.innerWidth, 1280) },
-                    height: { ideal: Math.min(window.innerHeight, 720) }
-                }
-            });
-            
+            this.stream = await navigator.mediaDevices.getUserMedia(constraints);
+
             this.video.srcObject = this.stream;
             await this.video.play();
             this.startQRScan();
@@ -67,7 +83,7 @@ class QRScanner {
             
             if (code) {
                 console.log('QR Code detected:', code.data);
-                // Handle detected QR code here
+                // Aquí puedes manejar el código QR detectado
             }
 
             requestAnimationFrame(scanFrame);
@@ -80,5 +96,5 @@ class QRScanner {
     }
 }
 
-// Initialize scanner when DOM is loaded
+// Inicializa el escáner cuando el DOM esté cargado
 document.addEventListener('DOMContentLoaded', () => new QRScanner());
