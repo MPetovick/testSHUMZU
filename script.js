@@ -4,21 +4,24 @@ class QRScanner {
         this.cameraContainer = document.getElementById('cameraContainer');
         this.stream = null;
         this.scanning = false;
+        this.qrDataMap = new Map();
+        this.password = null;
         this.init();
     }
 
     init() {
-        // Verificar si el navegador soporta getUserMedia
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            alert('Este navegador no soporta el acceso a la cámara. Usa una versión más reciente.');
+            alert('Este navegador no soporta el acceso a la cámara.');
             return;
         }
+
         this.cameraContainer.addEventListener('click', () => this.toggleCamera());
+        document.getElementById('reconstructButton').addEventListener('click', () => this.reconstructFile());
         window.addEventListener('beforeunload', () => this.cleanup());
     }
 
     async toggleCamera() {
-        if (this.stream) {
+        if (this.scanning) {
             this.stopCamera();
         } else {
             await this.startCamera();
@@ -27,83 +30,183 @@ class QRScanner {
 
     async startCamera() {
         try {
-            const constraints = { video: {} };
-            const isPC = !/Mobi|Android/i.test(navigator.userAgent); // Detecta si es un PC
-
-            // Si es un PC, no especificamos facingMode (usa la cámara disponible)
-            if (!isPC) {
-                constraints.video.facingMode = 'environment'; // Cámara trasera en móviles
-            }
-
-            // Configuraciones adicionales si son soportadas
-            const supportedConstraints = navigator.mediaDevices.getSupportedConstraints();
-            if (supportedConstraints.focusMode) {
-                constraints.video.focusMode = 'continuous';
-            }
-            if (supportedConstraints.focusDistance) {
-                constraints.video.focusDistance = { ideal: 0.1 }; // Distancia ideal para QR
-            }
-            constraints.video.width = { ideal: Math.min(window.innerWidth, 1280) };
-            constraints.video.height = { ideal: Math.min(window.innerHeight, 720) };
-
-            this.cameraContainer.classList.add('active');
-            this.stream = await navigator.mediaDevices.getUserMedia(constraints);
-
+            this.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
             this.video.srcObject = this.stream;
-            await this.video.play();
-            this.startQRScan();
-        } catch (error) {
-            console.error('Error al acceder a la cámara:', error);
-            this.cameraContainer.classList.remove('active');
-            if (error.name === 'NotAllowedError') {
-                alert('No se tienen permisos para acceder a la cámara. Habilítalos en el navegador.');
-            } else if (error.name === 'NotFoundError') {
-                alert('No se encontró una cámara en el dispositivo.');
-            } else {
-                alert('Error al activar la cámara: ' + error.message);
-            }
+            this.scanning = true;
+            this.scan();
+        } catch (err) {
+            console.error('Error al acceder a la cámara:', err);
+            alert('No se pudo acceder a la cámara: ' + err.message);
         }
     }
 
     stopCamera() {
-        this.scanning = false;
         if (this.stream) {
             this.stream.getTracks().forEach(track => track.stop());
             this.stream = null;
         }
-        this.video.srcObject = null;
-        this.cameraContainer.classList.remove('active');
+        this.scanning = false;
     }
 
-    startQRScan() {
+    scan() {
+        if (!this.scanning) return;
+
         const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        this.scanning = true;
+        const context = canvas.getContext('2d');
+        canvas.width = this.video.videoWidth;
+        canvas.height = this.video.videoHeight;
+        context.drawImage(this.video, 0, 0, canvas.width, canvas.height);
+        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height);
 
-        const scanFrame = () => {
-            if (!this.scanning) return;
+        if (code) {
+            this.handleQRCode(code.data);
+        }
 
-            canvas.width = this.video.videoWidth;
-            canvas.height = this.video.videoHeight;
-            ctx.drawImage(this.video, 0, 0, canvas.width, canvas.height);
+        requestAnimationFrame(() => this.scan());
+    }
 
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const code = jsQR(imageData.data, canvas.width, canvas.height);
+    handleQRCode(data) {
+        try {
+            const qrData = JSON.parse(data);
+            if (typeof qrData.index !== 'number' || typeof qrData.data !== 'string') {
+                throw new Error('Invalid QR data format');
+            }
+            this.qrDataMap.set(qrData.index, qrData.data);
+            console.log(`QR Code detectado: índice ${qrData.index}`);
             
-            if (code) {
-                console.log('QR Code detected:', code.data);
-                // Aquí puedes manejar el código QR detectado
+            if (this.qrDataMap.size === 1) {
+                this.promptPassword();
+            }
+        } catch (error) {
+            console.error('Error al parsear QR data:', error);
+        }
+    }
+
+    promptPassword() {
+        const password = prompt('Ingrese la contraseña para descifrar los datos:');
+        if (password !== null) {
+            this.password = password;
+        } else {
+            alert('Se requiere una contraseña para continuar.');
+            this.stopCamera();
+        }
+    }
+
+    async deriveKey(password, salt) {
+        const hash = await argon2.hash({
+            pass: password,
+            salt: salt,
+            time: 2,
+            mem: 102400,
+            parallelism: 8,
+            hashLen: 32,
+            type: argon2.ArgonType.Argon2id
+        });
+        return new Uint8Array(hash.hash);
+    }
+
+    async decryptData(encryptedData, password) {
+        const bytes = new Uint8Array([...window.atob(encryptedData)].map(c => c.charCodeAt(0)));
+        const salt = bytes.slice(0, 16);
+        const nonce = bytes.slice(16, 28);
+        const tag = bytes.slice(28, 44);
+        const ciphertext = bytes.slice(44);
+        const dataToDecrypt = new Uint8Array([...ciphertext, ...tag]);
+        
+        const keyMaterial = await this.deriveKey(password, salt);
+        const key = await crypto.subtle.importKey(
+            "raw",
+            keyMaterial,
+            { name: "AES-GCM" },
+            false,
+            ["decrypt"]
+        );
+        
+        const decrypted = await crypto.subtle.decrypt(
+            {
+                name: "AES-GCM",
+                iv: nonce,
+                tagLength: 128
+            },
+            key,
+            dataToDecrypt
+        );
+        return new Uint8Array(decrypted);
+    }
+
+    decompressData(compressedData) {
+        // Placeholder: Reemplazar con implementación real
+        // Ejemplo con zstd-js y brotli-decompress-js:
+        // const zstdDecompressed = ZstdSimple.decompress(compressedData);
+        // const brotliDecompressed = BrotliDecode(zstdDecompressed);
+        // return brotliDecompressed;
+        return compressedData; // Temporal, implementar con bibliotecas
+    }
+
+    async reconstructFile() {
+        if (this.qrDataMap.size === 0) {
+            alert('No se han escaneado QR codes.');
+            return;
+        }
+
+        if (!this.password) {
+            alert('Proporcione la contraseña.');
+            return;
+        }
+
+        try {
+            const encryptedMetadata = this.qrDataMap.get(0);
+            if (!encryptedMetadata) {
+                throw new Error('Metadato faltante (índice 0).');
+            }
+            const compressedMetadata = await this.decryptData(encryptedMetadata, this.password);
+            const metadataStr = new TextDecoder().decode(this.decompressData(compressedMetadata));
+            const metadata = JSON.parse(metadataStr);
+            const fileName = metadata.file_name;
+            const expectedHash = metadata.hash;
+
+            const maxIndex = Math.max(...this.qrDataMap.keys());
+            let reconstructedData = new Uint8Array();
+
+            for (let i = 1; i <= maxIndex; i++) {
+                const encryptedBlock = this.qrDataMap.get(i);
+                if (!encryptedBlock) {
+                    throw new Error(`Falta el bloque ${i}.`);
+                }
+                const compressedBlock = await this.decryptData(encryptedBlock, this.password);
+                const blockData = this.decompressData(compressedBlock);
+                reconstructedData = new Uint8Array([...reconstructedData, ...blockData]);
             }
 
-            requestAnimationFrame(scanFrame);
-        };
-        scanFrame();
+            const computedHash = sha3_256(reconstructedData);
+            if (computedHash !== expectedHash) {
+                throw new Error('Verificación de integridad fallida: hashes no coinciden.');
+            }
+
+            this.downloadFile(reconstructedData, fileName);
+            alert('Archivo reconstruido exitosamente.');
+        } catch (error) {
+            console.error('Error al reconstruir el archivo:', error);
+            alert('Error al reconstruir el archivo: ' + error.message);
+        }
+    }
+
+    downloadFile(data, filename) {
+        const blob = new Blob([data], { type: 'application/octet-stream' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     }
 
     cleanup() {
-        if (this.stream) this.stopCamera();
+        this.stopCamera();
     }
 }
 
-// Inicializa el escáner cuando el DOM esté cargado
-document.addEventListener('DOMContentLoaded', () => new QRScanner());
+const scanner = new QRScanner();
