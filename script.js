@@ -1,5 +1,3 @@
-import jsQR from 'jsqr';
-
 class QRScanner {
     constructor() {
         this.video = document.getElementById('video');
