@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SHUMZU - Secure QR Transfer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        /* Mantén tus estilos existentes */
+        /* Agrega estilos para el modal */
+        .modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #1a1a2e;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px var(--neon-cyan);
+            z-index: 1000;
+            color: #fff;
+        }
+        .modal input {
+            margin: 10px 0;
+            padding: 5px;
+            width: 80%;
+            background: #0a0a0f;
+            border: 1px solid var(--neon-cyan);
+            color: #fff;
+        }
+        .modal button {
+            background: var(--neon-cyan);
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="logo-container">
+        <img id="logo" src="rsc/logo_SHUMZU.png" alt="SHUMZU Logo">
+    </div>
+
+    <h2>Secure data solution combining compression, encryption, and QR codes for efficient transmission</h2>
+
+    <div class="camera-container" id="cameraContainer">
+        <video id="video" autoplay playsinline></video>
+        <div class="inactive-overlay" id="inactiveOverlay">
+            <svg class="fingerprint" viewBox="0 0 100 100">
+                <path d="M50 10 Q60 20 50 30 Q40 20 50 10" stroke="var(--neon-cyan)" stroke-width="2" fill="none"/>
+                <path d="M30 20 Q40 30 50 40 Q60 30 70 20" stroke="var(--neon-cyan)" stroke-width="2" fill="none"/>
+                <path d="M20 30 Q30 40 40 50 Q50 40 60 30" stroke="var(--neon-cyan)" stroke-width="2" fill="none"/>
+                <path d="M10 40 Q20 50 30 60 Q40 50 50 40" stroke="var(--neon-cyan)" stroke-width="2" fill="none"/>
+                <path d="M60 40 Q70 50 80 60 Q90 50 90 40" stroke="var(--neon-cyan)" stroke-width="2" fill="none"/>
+            </svg>
+            <div class="scanning-lines">
+                <div class="line"></div>
+                <div class="line"></div>
+                <div class="line"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="social-container">
+        <a href="https://t.me/SHUMZUbot" target="_blank" class="social-icon">
+            <svg viewBox="0 0 24 24" fill="var(--neon-cyan)">
+                <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.14-.26.258-.534.258l.198-2.76 5.518-4.986c.22-.198-.048-.308-.346-.11l-6.816 4.29-2.96-.924c-.64-.203-.658-.64.135-.954l11.566-4.458c.538-.196 1.006.128.832.941z"/>
+            </svg>
+        </a>
+        <a href="https://github.com/mpetovick/SHUMZU" target="_blank" class="social-icon">
+            <svg viewBox="0 0 24 24" fill="var(--neon-cyan)">
+                <path d="M12 0C5.373 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.6.113.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
+            </svg>
+        </a>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.2.0/crypto-js.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/zstddec@0.1.0/dist/zstddec.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/brotli-dec@0.1.2/dist/brotli-dec.min.js"></script>
+    <script>
+        const video = document.getElementById('video');
+        const cameraContainer = document.getElementById('cameraContainer');
+        let stream = null;
+        let scanning = false;
+
+        // Estado inicial: overlay visible
+        cameraContainer.classList.remove('active');
+
+        const toggleCamera = async () => {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+                video.srcObject = null;
+                scanning = false;
+                cameraContainer.classList.remove('active');
+            } else {
+                try {
+                    cameraContainer.classList.add('active');
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            facingMode: 'environment',
+                            width: { ideal: Math.min(window.innerWidth, 1280) },
+                            height: { ideal: Math.min(window.innerHeight, 720) }
+                        }
+                    });
+                    video.srcObject = stream;
+                    video.play();
+                    startQRScan();
+                } catch (err) {
+                    console.error('Error al activar la cámara:', err);
+                    cameraContainer.classList.remove('active');
+                }
+            }
+        };
+
+        const startQRScan = () => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            scanning = true;
+
+            const scanFrame = () => {
+                if (!scanning) return;
+
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const code = jsQR(imageData.data, canvas.width, canvas.height);
+                if (code) {
+                    try {
+                        const qrData = JSON.parse(code.data);
+                        if (qrData.index !== undefined && qrData.data) {
+                            console.log('QR SHUMZU detectado:', qrData);
+                            handleSHUMZUQR(qrData);
+                            scanning = false; // Detener escaneo tras detectar un QR válido
+                        } else {
+                            alert('QR incompatible');
+                        }
+                    } catch (e) {
+                        alert('QR incompatible');
+                    }
+                }
+
+                requestAnimationFrame(scanFrame);
+            };
+            scanFrame();
+        };
+
+        const showPasswordModal = () => {
+            return new Promise((resolve) => {
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.innerHTML = `
+                    <h3>Ingrese la contraseña</h3>
+                    <input type="password" id="passwordInput" placeholder="Deje en blanco si no hay contraseña">
+                    <button id="submitPassword">Enviar</button>
+                `;
+                document.body.appendChild(modal);
+
+                const input = document.getElementById('passwordInput');
+                const button = document.getElementById('submitPassword');
+
+                button.addEventListener('click', () => {
+                    const password = input.value.trim();
+                    document.body.removeChild(modal);
+                    resolve(password);
+                });
+
+                input.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        const password = input.value.trim();
+                        document.body.removeChild(modal);
+                        resolve(password);
+                    }
+                });
+            });
+        };
+
+        const deriveKey = (password, salt) => {
+            // Simulación simple de derivación de clave con SHA-256 (Argon2 no está en JS por defecto)
+            const keyMaterial = CryptoJS.PBKDF2(password, CryptoJS.enc.Hex.parse(salt), {
+                keySize: 256 / 32,
+                iterations: 1000
+            });
+            return keyMaterial.toString(CryptoJS.enc.Hex);
+        };
+
+        const decrypt = (encryptedData, password) => {
+            const blob = CryptoJS.enc.Base64.parse(encryptedData);
+            const salt = blob.toString(CryptoJS.enc.Hex, 0, 16); // SALT_SIZE = 16
+            const nonce = blob.toString(CryptoJS.enc.Hex, 16, 28); // NONCE_SIZE = 12
+            const tag = blob.toString(CryptoJS.enc.Hex, 28, 44); // Tag = 16
+            const ciphertext = blob.toString(CryptoJS.enc.Hex, 44);
+
+            const key = deriveKey(password || '', salt);
+            const decrypted = CryptoJS.AES.decrypt(
+                { ciphertext: CryptoJS.enc.Hex.parse(ciphertext), iv: CryptoJS.enc.Hex.parse(nonce) },
+                CryptoJS.enc.Hex.parse(key),
+                { mode: CryptoJS.mode.GCM, padding: CryptoJS.pad.NoPadding, tag: CryptoJS.enc.Hex.parse(tag) }
+            );
+            return new Uint8Array(decrypted.toString(CryptoJS.enc.Hex).match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+        };
+
+        const decompress = (data) => {
+            const brotliDecompressed = BrotliDecode(new Uint8Array(data));
+            const zstd = new ZstdDec();
+            zstd.init();
+            return zstd.decompress(brotliDecompressed);
+        };
+
+        const saveFile = (data, filename) => {
+            const blob = new Blob([data], { type: 'application/octet-stream' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `SHUMZU/${filename || 'reconstructed_file'}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        };
+
+        const handleSHUMZUQR = async (qrData) => {
+            const password = await showPasswordModal();
+            try {
+                let decryptedData;
+                if (password) {
+                    decryptedData = decrypt(qrData.data, password);
+                } else {
+                    decryptedData = new Uint8Array(CryptoJS.enc.Base64.parse(qrData.data).toString(CryptoJS.enc.Hex).match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+                }
+                const decompressedData = decompress(decryptedData);
+                
+                // Si es el bloque de metadatos (index: 0), extraer el nombre del archivo
+                if (qrData.index === 0) {
+                    const metadata = JSON.parse(new TextDecoder().decode(decompressedData));
+                    saveFile(decompressedData, metadata.file_name);
+                    alert(`Archivo reconstruido y guardado como SHUMZU/${metadata.file_name}`);
+                } else {
+                    saveFile(decompressedData, `block_${qrData.index}`);
+                    alert(`Bloque ${qrData.index} reconstruido y guardado en SHUMZU/`);
+                }
+            } catch (e) {
+                console.error('Error al procesar el QR:', e);
+                alert('Error al desencriptar o reconstruir el archivo. Verifica la contraseña o el formato del QR.');
+            }
+        };
+
+        cameraContainer.addEventListener('click', toggleCamera);
+
+        window.addEventListener('beforeunload', () => {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+        });
+    </script>
+</body>
+</html>
