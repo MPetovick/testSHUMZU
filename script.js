@@ -1,4 +1,3 @@
-
 const video = document.getElementById('video');
 const cameraContainer = document.getElementById('cameraContainer');
 const passwordModal = document.getElementById('passwordModal');
@@ -7,7 +6,6 @@ const submitPassword = document.getElementById('submitPassword');
 let stream = null;
 let scanning = false;
 
-// Estado inicial: overlay visible
 cameraContainer.classList.remove('active');
 
 const toggleCamera = async () => {
@@ -44,11 +42,9 @@ const startQRScan = () => {
 
     const scanFrame = () => {
         if (!scanning) return;
-
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const code = jsQR(imageData.data, canvas.width, canvas.height);
         if (code) {
@@ -57,16 +53,16 @@ const startQRScan = () => {
                 if (qrData.index !== undefined && qrData.data) {
                     console.log('QR SHUMZU detectado:', qrData);
                     handleSHUMZUQR(qrData);
-                    scanning = false; // Detener escaneo tras detectar un QR válido
+                    scanning = false;
                 } else {
                     alert('QR incompatible');
                 }
             } catch (e) {
                 alert('QR incompatible');
             }
+        } else {
+            requestAnimationFrame(scanFrame);
         }
-
-        requestAnimationFrame(scanFrame);
     };
     scanFrame();
 };
@@ -78,14 +74,14 @@ const showPasswordModal = () => {
             const password = passwordInput.value.trim();
             passwordModal.style.display = 'none';
             resolve(password);
-        });
+        }, { once: true });
         passwordInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 const password = passwordInput.value.trim();
                 passwordModal.style.display = 'none';
                 resolve(password);
             }
-        });
+        }, { once: true });
     });
 };
 
@@ -99,11 +95,10 @@ const deriveKey = (password, salt) => {
 
 const decrypt = (encryptedData, password) => {
     const blob = CryptoJS.enc.Base64.parse(encryptedData);
-    const salt = blob.toString(CryptoJS.enc.Hex, 0, 16); // SALT_SIZE = 16
-    const nonce = blob.toString(CryptoJS.enc.Hex, 16, 28); // NONCE_SIZE = 12
-    const tag = blob.toString(CryptoJS.enc.Hex, 28, 44); // Tag = 16
+    const salt = blob.toString(CryptoJS.enc.Hex, 0, 16);
+    const nonce = blob.toString(CryptoJS.enc.Hex, 16, 28);
+    const tag = blob.toString(CryptoJS.enc.Hex, 28, 44);
     const ciphertext = blob.toString(CryptoJS.enc.Hex, 44);
-
     const key = deriveKey(password || '', salt);
     const decrypted = CryptoJS.AES.decrypt(
         { ciphertext: CryptoJS.enc.Hex.parse(ciphertext), iv: CryptoJS.enc.Hex.parse(nonce) },
@@ -135,14 +130,8 @@ const saveFile = (data, filename) => {
 const handleSHUMZUQR = async (qrData) => {
     const password = await showPasswordModal();
     try {
-        let decryptedData;
-        if (password) {
-            decryptedData = decrypt(qrData.data, password);
-        } else {
-            decryptedData = new Uint8Array(CryptoJS.enc.Base64.parse(qrData.data).toString(CryptoJS.enc.Hex).match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
-        }
+        let decryptedData = password ? decrypt(qrData.data, password) : new Uint8Array(CryptoJS.enc.Base64.parse(qrData.data).toString(CryptoJS.enc.Hex).match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
         const decompressedData = decompress(decryptedData);
-        
         if (qrData.index === 0) {
             const metadata = JSON.parse(new TextDecoder().decode(decompressedData));
             saveFile(decompressedData, metadata.file_name);
@@ -160,7 +149,5 @@ const handleSHUMZUQR = async (qrData) => {
 cameraContainer.addEventListener('click', toggleCamera);
 
 window.addEventListener('beforeunload', () => {
-    if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-    }
+    if (stream) stream.getTracks().forEach(track => track.stop());
 });
