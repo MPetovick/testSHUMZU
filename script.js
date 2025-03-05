@@ -30,8 +30,22 @@ class QRScanner {
 
     async startCamera() {
         try {
-            this.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            this.stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    facingMode: 'environment',
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                } 
+            });
             this.video.srcObject = this.stream;
+            
+            // Esperar a que el video tenga metadata cargada
+            await new Promise((resolve) => {
+                this.video.onloadedmetadata = () => {
+                    this.video.play().then(resolve);
+                };
+            });
+            
             this.scanning = true;
             this.scan();
         } catch (err) {
@@ -51,16 +65,27 @@ class QRScanner {
     scan() {
         if (!this.scanning) return;
 
+        // Verificar que el video tenga dimensiones válidas
+        if (this.video.videoWidth === 0 || this.video.videoHeight === 0) {
+            requestAnimationFrame(() => this.scan());
+            return;
+        }
+
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
         canvas.width = this.video.videoWidth;
         canvas.height = this.video.videoHeight;
-        context.drawImage(this.video, 0, 0, canvas.width, canvas.height);
-        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(imageData.data, imageData.width, imageData.height);
+        
+        try {
+            context.drawImage(this.video, 0, 0, canvas.width, canvas.height);
+            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+            const code = jsQR(imageData.data, imageData.width, imageData.height);
 
-        if (code) {
-            this.handleQRCode(code.data);
+            if (code) {
+                this.handleQRCode(code.data);
+            }
+        } catch (error) {
+            console.error('Error en el escaneo:', error);
         }
 
         requestAnimationFrame(() => this.scan());
@@ -70,7 +95,7 @@ class QRScanner {
         try {
             const qrData = JSON.parse(data);
             if (typeof qrData.index !== 'number' || typeof qrData.data !== 'string') {
-                throw new Error('Invalid QR data format');
+                throw new Error('Formato de datos QR inválido');
             }
             this.qrDataMap.set(qrData.index, qrData.data);
             console.log(`QR Code detectado: índice ${qrData.index}`);
@@ -79,7 +104,7 @@ class QRScanner {
                 this.promptPassword();
             }
         } catch (error) {
-            console.error('Error al parsear QR data:', error);
+            console.error('Error al analizar datos QR:', error);
         }
     }
 
@@ -136,12 +161,8 @@ class QRScanner {
     }
 
     decompressData(compressedData) {
-        // Placeholder: Reemplazar con implementación real
-        // Ejemplo con zstd-js y brotli-decompress-js:
-        // const zstdDecompressed = ZstdSimple.decompress(compressedData);
-        // const brotliDecompressed = BrotliDecode(zstdDecompressed);
-        // return brotliDecompressed;
-        return compressedData; // Temporal, implementar con bibliotecas
+        // Implementar con bibliotecas de descompresión reales
+        return compressedData;
     }
 
     async reconstructFile() {
