@@ -2,6 +2,7 @@ class QRScanner {
     constructor() {
         this.video = document.getElementById('video');
         this.cameraContainer = document.getElementById('cameraContainer');
+        this.inactiveOverlay = document.getElementById('inactiveOverlay');
         this.stream = null;
         this.scanning = false;
         this.qrDataMap = new Map();
@@ -39,7 +40,9 @@ class QRScanner {
             });
             this.video.srcObject = this.stream;
             
-            // Esperar a que el video tenga metadata cargada
+            // Actualizar estado visual
+            this.cameraContainer.classList.add('active');
+            
             await new Promise((resolve) => {
                 this.video.onloadedmetadata = () => {
                     this.video.play().then(resolve);
@@ -50,6 +53,7 @@ class QRScanner {
             this.scan();
         } catch (err) {
             console.error('Error al acceder a la cámara:', err);
+            this.cameraContainer.classList.remove('active');
             alert('No se pudo acceder a la cámara: ' + err.message);
         }
     }
@@ -60,12 +64,13 @@ class QRScanner {
             this.stream = null;
         }
         this.scanning = false;
+        // Restaurar overlay
+        this.cameraContainer.classList.remove('active');
     }
 
     scan() {
         if (!this.scanning) return;
 
-        // Verificar que el video tenga dimensiones válidas
         if (this.video.videoWidth === 0 || this.video.videoHeight === 0) {
             requestAnimationFrame(() => this.scan());
             return;
