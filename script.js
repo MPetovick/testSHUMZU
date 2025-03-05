@@ -1,80 +1,76 @@
-const video = document.getElementById('video');
-const cameraContainer = document.getElementById('cameraContainer');
-const passwordModal = document.getElementById('passwordModal');
-const passwordInput = document.getElementById('passwordInput');
-const submitPassword = document.getElementById('submitPassword');
-let stream = null;
-let scanning = false;
+// Variables globales para almacenar los bloques y metadatos
+let blocks = {}; // Bloques de datos
+let metadata = null; // Metadatos del archivo
 
-cameraContainer.classList.remove('active');
+// Constantes basadas en el código Python
+const SALT_SIZE = 16;
+const NONCE_SIZE = 12;
 
-const toggleCamera = async () => {
-    if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-        stream = null;
-        video.srcObject = null;
-        scanning = false;
-        cameraContainer.classList.remove('active');
-    } else {
-        try {
-            cameraContainer.classList.add('active');
-            stream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    facingMode: 'environment',
-                    width: { ideal: Math.min(window.innerWidth, 1280) },
-                    height: { ideal: Math.min(window.innerHeight, 720) }
-                }
-            });
-            video.srcObject = stream;
-            video.play();
-            startQRScan();
-        } catch (err) {
-            console.error('Error al activar la cámara:', err);
-            cameraContainer.classList.remove('active');
-        }
-    }
-};
+// Función para derivar la clave con PBKDF2 (alternativa a Argon2)
+function deriveKey(password, salt) {
+    const keyMaterial = CryptoJS.PBKDF2(password, CryptoJS.enc.Hex.parse(salt), {
+        keySize: 256 / 32, // 32 bytes = 256 bits
+        iterations: 1000
+    });
+    return keyMaterial.toString(CryptoJS.enc.Hex);
+}
 
-const startQRScan = () => {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    scanning = true;
+// Función de desencriptación AES-GCM
+function decrypt(encryptedData, password) {
+    const blob = CryptoJS.enc.Base64.parse(encryptedData);
+    const salt = blob.toString(CryptoJS.enc.Hex, 0, SALT_SIZE);
+    const nonce = blob.toString(CryptoJS.enc.Hex, SALT_SIZE, SALT_SIZE + NONCE_SIZE);
+    const tag = blob.toString(CryptoJS.enc.Hex, SALT_SIZE + NONCE_SIZE, SALT_SIZE + NONCE_SIZE + 16);
+    const ciphertext = blob.toString(CryptoJS.enc.Hex, SALT_SIZE + NONCE_SIZE + 16);
 
-    const scanFrame = () => {
-        if (!scanning) return;
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(imageData.data, canvas.width, canvas.height);
-        if (code) {
-            try {
-                const qrData = JSON.parse(code.data);
-                if (qrData.index !== undefined && qrData.data) {
-                    console.log('QR SHUMZU detectado:', qrData);
-                    handleSHUMZUQR(qrData);
-                    scanning = false;
-                } else {
-                    alert('QR incompatible');
-                }
-            } catch (e) {
-                alert('QR incompatible');
-            }
-        } else {
-            requestAnimationFrame(scanFrame);
-        }
-    };
-    scanFrame();
-};
+    const key = deriveKey(password, salt);
+    const decrypted = CryptoJS.AES.decrypt(
+        { ciphertext: CryptoJS.enc.Hex.parse(ciphertext), iv: CryptoJS.enc.Hex.parse(nonce) },
+        CryptoJS.enc.Hex.parse(key),
+        { mode: CryptoJS.mode.GCM, padding: CryptoJS.pad.NoPadding, tag: CryptoJS.enc.Hex.parse(tag) }
+    );
+    return new Uint8Array(decrypted.toString(CryptoJS.enc.Hex).match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+}
 
-const showPasswordModal = () => {
+// Función de descompresión (Zstandard y luego Brotli)
+function decompress(data) {
+    const zstd = new ZstdDec();
+    zstd.init();
+    const zstdDecompressed = zstd.decompress(data);
+    const brotliDecompressed = BrotliDecode(zstdDecompressed);
+    return brotliDecompressed;
+}
+
+// Función para guardar el archivo reconstruido
+function saveFile(data, filename) {
+    const blob = new Blob([data], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `SHUMZU/${filename}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+// Función para mostrar el modal de contraseña
+function showPasswordModal() {
     return new Promise((resolve) => {
+        // Asumimos que tienes un modal con id="passwordModal" y un input con id="passwordInput"
+        const passwordModal = document.getElementById('passwordModal');
+        const passwordInput = document.getElementById('passwordInput');
+        const submitPassword = document.getElementById('submitPassword');
+
         passwordModal.style.display = 'block';
+        passwordInput.value = ''; // Limpiar el input
+
         submitPassword.addEventListener('click', () => {
             const password = passwordInput.value.trim();
             passwordModal.style.display = 'none';
             resolve(password);
         }, { once: true });
+
         passwordInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 const password = passwordInput.value.trim();
@@ -83,71 +79,82 @@ const showPasswordModal = () => {
             }
         }, { once: true });
     });
-};
+}
 
-const deriveKey = (password, salt) => {
-    const keyMaterial = CryptoJS.PBKDF2(password, CryptoJS.enc.Hex.parse(salt), {
-        keySize: 256 / 32,
-        iterations: 1000
-    });
-    return keyMaterial.toString(CryptoJS.enc.Hex);
-};
+// Función principal para manejar el QR de SHUMZU
+async function handleSHUMZUQR(qrData) {
+    // Verificar formato del QR
+    if (!qrData || typeof qrData !== 'object' || !('index' in qrData) || !('data' in qrData)) {
+        alert('QR incompatible: No es un QR de SHUMZU');
+        return;
+    }
 
-const decrypt = (encryptedData, password) => {
-    const blob = CryptoJS.enc.Base64.parse(encryptedData);
-    const salt = blob.toString(CryptoJS.enc.Hex, 0, 16);
-    const nonce = blob.toString(CryptoJS.enc.Hex, 16, 28);
-    const tag = blob.toString(CryptoJS.enc.Hex, 28, 44);
-    const ciphertext = blob.toString(CryptoJS.enc.Hex, 44);
-    const key = deriveKey(password || '', salt);
-    const decrypted = CryptoJS.AES.decrypt(
-        { ciphertext: CryptoJS.enc.Hex.parse(ciphertext), iv: CryptoJS.enc.Hex.parse(nonce) },
-        CryptoJS.enc.Hex.parse(key),
-        { mode: CryptoJS.mode.GCM, padding: CryptoJS.pad.NoPadding, tag: CryptoJS.enc.Hex.parse(tag) }
-    );
-    return new Uint8Array(decrypted.toString(CryptoJS.enc.Hex).match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
-};
-
-const decompress = (data) => {
-    const brotliDecompressed = BrotliDecode(new Uint8Array(data));
-    const zstd = new ZstdDec();
-    zstd.init();
-    return zstd.decompress(brotliDecompressed);
-};
-
-const saveFile = (data, filename) => {
-    const blob = new Blob([data], { type: 'application/octet-stream' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `SHUMZU/${filename || 'reconstructed_file'}`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-};
-
-const handleSHUMZUQR = async (qrData) => {
     const password = await showPasswordModal();
+    let decryptedData;
+
     try {
-        let decryptedData = password ? decrypt(qrData.data, password) : new Uint8Array(CryptoJS.enc.Base64.parse(qrData.data).toString(CryptoJS.enc.Hex).match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
-        const decompressedData = decompress(decryptedData);
-        if (qrData.index === 0) {
-            const metadata = JSON.parse(new TextDecoder().decode(decompressedData));
-            saveFile(decompressedData, metadata.file_name);
-            alert(`Archivo reconstruido y guardado como SHUMZU/${metadata.file_name}`);
+        // Desencriptar si hay contraseña, o simplemente decodificar Base64 si no la hay
+        if (password) {
+            decryptedData = decrypt(qrData.data, password);
         } else {
-            saveFile(decompressedData, `block_${qrData.index}`);
-            alert(`Bloque ${qrData.index} reconstruido y guardado en SHUMZU/`);
+            decryptedData = new Uint8Array(
+                CryptoJS.enc.Base64.parse(qrData.data)
+                    .toString(CryptoJS.enc.Hex)
+                    .match(/.{1,2}/g)
+                    .map(byte => parseInt(byte, 16))
+            );
+        }
+
+        // Descomprimir los datos
+        const decompressedData = decompress(decryptedData);
+
+        // Procesar según el índice
+        if (qrData.index === 0) {
+            // Bloque de metadatos
+            metadata = JSON.parse(new TextDecoder().decode(decompressedData));
+            alert(`Metadatos recibidos: ${metadata.file_name}`);
+        } else {
+            // Bloque de datos
+            blocks[qrData.index] = decompressedData;
+            alert(`Bloque ${qrData.index} recibido`);
+        }
+
+        // Verificar si tenemos todos los bloques para reconstruir
+        if (metadata && Object.keys(blocks).length === metadata.total_blocks) {
+            let reconstructedData = new Uint8Array();
+            for (let i = 1; i <= metadata.total_blocks; i++) {
+                if (!blocks[i]) {
+                    alert(`Falta el bloque ${i}`);
+                    return;
+                }
+                reconstructedData = new Uint8Array([...reconstructedData, ...blocks[i]]);
+            }
+
+            // Verificar el hash
+            const computedHash = sha3_256(reconstructedData).hex();
+            if (metadata.hash === computedHash) {
+                saveFile(reconstructedData, metadata.file_name);
+                alert(`Archivo reconstruido y guardado como SHUMZU/${metadata.file_name}`);
+                // Reiniciar las variables
+                blocks = {};
+                metadata = null;
+            } else {
+                alert('Error: El hash no coincide, el archivo puede estar corrupto.');
+            }
         }
     } catch (e) {
         console.error('Error al procesar el QR:', e);
         alert('Error al desencriptar o reconstruir el archivo. Verifica la contraseña o el formato del QR.');
     }
-};
+}
 
-cameraContainer.addEventListener('click', toggleCamera);
-
-window.addEventListener('beforeunload', () => {
-    if (stream) stream.getTracks().forEach(track => track.stop());
-});
+// Ejemplo de integración con el escaneo de QR (ajusta según tu implementación)
+function onQRCodeScanned(data) {
+    let qrData;
+    try {
+        qrData = JSON.parse(data);
+        handleSHUMZUQR(qrData);
+    } catch (e) {
+        alert('QR no válido: No contiene un JSON');
+    }
+}
