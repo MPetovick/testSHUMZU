@@ -8,6 +8,11 @@ class QRScanner {
     }
 
     init() {
+        // Verificar si el navegador soporta getUserMedia
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            alert('Este navegador no soporta el acceso a la cámara. Usa una versión más reciente.');
+            return;
+        }
         this.cameraContainer.addEventListener('click', () => this.toggleCamera());
         window.addEventListener('beforeunload', () => this.cleanup());
     }
@@ -22,27 +27,24 @@ class QRScanner {
 
     async startCamera() {
         try {
-            const constraints = { video: { facingMode: 'environment' } };
-            const supportedConstraints = navigator.mediaDevices.getSupportedConstraints();
+            const constraints = { video: {} };
+            const isPC = !/Mobi|Android/i.test(navigator.userAgent); // Detecta si es un PC
 
-            // Configuración de enfoque automático si es soportada
+            // Si es un PC, no especificamos facingMode (usa la cámara disponible)
+            if (!isPC) {
+                constraints.video.facingMode = 'environment'; // Cámara trasera en móviles
+            }
+
+            // Configuraciones adicionales si son soportadas
+            const supportedConstraints = navigator.mediaDevices.getSupportedConstraints();
             if (supportedConstraints.focusMode) {
                 constraints.video.focusMode = 'continuous';
             }
             if (supportedConstraints.focusDistance) {
-                constraints.video.focusDistance = { ideal: 0.1 }; // Distancia ideal de 10 cm para QR
+                constraints.video.focusDistance = { ideal: 0.1 }; // Distancia ideal para QR
             }
             constraints.video.width = { ideal: Math.min(window.innerWidth, 1280) };
             constraints.video.height = { ideal: Math.min(window.innerHeight, 720) };
-
-            // Configuraciones avanzadas para mejor calidad de imagen
-            if (supportedConstraints.whiteBalanceMode && supportedConstraints.exposureMode) {
-                constraints.video.advanced = [{
-                    focusMode: 'continuous',
-                    whiteBalanceMode: 'auto',
-                    exposureMode: 'auto'
-                }];
-            }
 
             this.cameraContainer.classList.add('active');
             this.stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -51,8 +53,15 @@ class QRScanner {
             await this.video.play();
             this.startQRScan();
         } catch (error) {
-            console.error('Error accessing camera:', error);
+            console.error('Error al acceder a la cámara:', error);
             this.cameraContainer.classList.remove('active');
+            if (error.name === 'NotAllowedError') {
+                alert('No se tienen permisos para acceder a la cámara. Habilítalos en el navegador.');
+            } else if (error.name === 'NotFoundError') {
+                alert('No se encontró una cámara en el dispositivo.');
+            } else {
+                alert('Error al activar la cámara: ' + error.message);
+            }
         }
     }
 
