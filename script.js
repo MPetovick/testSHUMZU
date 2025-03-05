@@ -22,7 +22,7 @@ class QRScanner {
     }
 
     async toggleCamera() {
-        if (this.scanning) {
+        if (this.stream) {
             this.stopCamera();
         } else {
             await this.startCamera();
@@ -31,6 +31,7 @@ class QRScanner {
 
     async startCamera() {
         try {
+            this.cameraContainer.classList.add('active'); // Add 'active' before starting camera
             this.stream = await navigator.mediaDevices.getUserMedia({ 
                 video: { 
                     facingMode: 'environment',
@@ -39,9 +40,6 @@ class QRScanner {
                 } 
             });
             this.video.srcObject = this.stream;
-            
-            // Actualizar estado visual
-            this.cameraContainer.classList.add('active');
             
             await new Promise((resolve) => {
                 this.video.onloadedmetadata = () => {
@@ -53,7 +51,7 @@ class QRScanner {
             this.scan();
         } catch (err) {
             console.error('Error al acceder a la cámara:', err);
-            this.cameraContainer.classList.remove('active');
+            this.cameraContainer.classList.remove('active'); // Remove 'active' on error
             alert('No se pudo acceder a la cámara: ' + err.message);
         }
     }
@@ -64,8 +62,8 @@ class QRScanner {
             this.stream = null;
         }
         this.scanning = false;
-        // Restaurar overlay
-        this.cameraContainer.classList.remove('active');
+        this.video.srcObject = null;
+        this.cameraContainer.classList.remove('active'); // Remove 'active' to show overlay
     }
 
     scan() {
@@ -166,7 +164,7 @@ class QRScanner {
     }
 
     decompressData(compressedData) {
-        // Implementar con bibliotecas de descompresión reales
+        // Placeholder: Implement with real decompression libraries (Zstandard/Brotli)
         return compressedData;
     }
 
@@ -230,13 +228,11 @@ class QRScanner {
         URL.revokeObjectURL(url);
     }
 
-            requestAnimationFrame(() => this.scan());
-    }
-
     cleanup() {
         this.stopCamera();
-        this.cameraContainer.classList.remove('active');
     }
 }
 
-const scanner = new QRScanner();
+document.addEventListener('DOMContentLoaded', () => {
+    const scanner = new QRScanner();
+});
