@@ -26,6 +26,13 @@ body {
     filter: drop-shadow(0 0 15px var(--neon-cyan));
 }
 
+h1 {
+    color: var(--neon-cyan);
+    text-shadow: 0 0 10px var(--neon-cyan);
+    font-size: clamp(1.5rem, 5vw, 2.5rem);
+    margin: 1rem 0;
+}
+
 h2 {
     color: var(--neon-cyan);
     text-shadow: 0 0 10px var(--neon-cyan);
@@ -44,7 +51,7 @@ h2 {
     border-radius: 15px;
     overflow: hidden;
     box-shadow: 0 0 30px rgba(0, 243, 255, 0.1);
-    cursor: default;
+    cursor: pointer;
 }
 
 #video {
@@ -101,6 +108,36 @@ h2 {
     );
     animation: scan 2s infinite;
     opacity: 0.3;
+}
+
+.scanning-lines .line:nth-child(1) {
+    top: 20%;
+}
+
+.scanning-lines .line:nth-child(2) {
+    top: 50%;
+}
+
+.scanning-lines .line:nth-child(3) {
+    top: 80%;
+}
+
+.shumzu-button {
+    background-color: var(--neon-cyan);
+    color: var(--dark-bg);
+    border: none;
+    padding: 10px 20px;
+    font-size: 1.2em;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s, box-shadow 0.3s;
+    box-shadow: 0 0 10px var(--neon-cyan);
+    margin-top: 1rem;
+}
+
+.shumzu-button:hover {
+    background-color: #00d4db;
+    box-shadow: 0 0 20px var(--neon-cyan);
 }
 
 .social-container {
