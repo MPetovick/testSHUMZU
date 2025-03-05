@@ -230,8 +230,12 @@ class QRScanner {
         URL.revokeObjectURL(url);
     }
 
+            requestAnimationFrame(() => this.scan());
+    }
+
     cleanup() {
         this.stopCamera();
+        this.cameraContainer.classList.remove('active');
     }
 }
 
