@@ -1,238 +1,185 @@
-class QRScanner {
-    constructor() {
-        this.video = document.getElementById('video');
-        this.cameraContainer = document.getElementById('cameraContainer');
-        this.inactiveOverlay = document.getElementById('inactiveOverlay');
-        this.stream = null;
-        this.scanning = false;
-        this.qrDataMap = new Map();
-        this.password = null;
-        this.init();
+document.addEventListener('DOMContentLoaded', () => {
+    const scanner = new Instascan.Scanner({ video: document.getElementById('preview'), mirror: false });
+    const startBtn = document.getElementById('startBtn');
+    const status = document.getElementById('status');
+    let isScanning = false;
+    let collectedData = new Map();
+    let metadata = null;
+
+    // Añadir polyfills necesarios
+    async function loadZstd() {
+        window.zstd = await import('https://cdn.jsdelivr.net/npm/zstd-codec@0.1.2/zstd-codec.mjs');
     }
+    loadZstd();
 
-    init() {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            alert('Este navegador no soporta el acceso a la cámara.');
-            return;
-        }
+    // Inicializar Argon2
+    const argon2 = await import('https://cdn.jsdelivr.net/npm/argon2-browser@1.18.0/lib/argon2.js');
 
-        this.cameraContainer.addEventListener('click', () => this.toggleCamera());
-        document.getElementById('reconstructButton').addEventListener('click', () => this.reconstructFile());
-        window.addEventListener('beforeunload', () => this.cleanup());
-    }
-
-    async toggleCamera() {
-        if (this.stream) {
-            this.stopCamera();
+    startBtn.addEventListener('click', async () => {
+        if (!isScanning) {
+            const cameras = await Instascan.Camera.getCameras();
+            if (cameras.length > 0) {
+                await scanner.start(cameras[0]);
+                isScanning = true;
+                startBtn.textContent = 'Detener Escaneo';
+                status.textContent = 'Escaneando... 0% completado';
+            } else {
+                alert('No se encontraron cámaras!');
+            }
         } else {
-            await this.startCamera();
+            scanner.stop();
+            isScanning = false;
+            startBtn.textContent = 'Iniciar Escaneo';
+            status.textContent = 'Detenido';
         }
-    }
+    });
 
-    async startCamera() {
+    scanner.addListener('scan', async (content) => {
         try {
-            this.cameraContainer.classList.add('active'); // Add 'active' before starting camera
-            this.stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { 
-                    facingMode: 'environment',
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
-                } 
-            });
-            this.video.srcObject = this.stream;
-            
-            await new Promise((resolve) => {
-                this.video.onloadedmetadata = () => {
-                    this.video.play().then(resolve);
-                };
-            });
-            
-            this.scanning = true;
-            this.scan();
+            const data = JSON.parse(content);
+            if (!data.index && data.index !== 0) throw new Error('QR inválido');
+
+            // Manejar metadatos (primer bloque)
+            if (data.index === 0) {
+                metadata = JSON.parse(new TextDecoder().decode(base64ToBytes(data.data)));
+                status.textContent = `Escaneando ${metadata.file_name}...`;
+                return;
+            }
+
+            // Almacenar bloque
+            if (!collectedData.has(data.index)) {
+                collectedData.set(data.index, data.data);
+                updateProgress();
+                
+                if (collectedData.size === metadata?.total_blocks) {
+                    await processCompleteData();
+                }
+            }
         } catch (err) {
-            console.error('Error al acceder a la cámara:', err);
-            this.cameraContainer.classList.remove('active'); // Remove 'active' on error
-            alert('No se pudo acceder a la cámara: ' + err.message);
+            console.error('Error procesando QR:', err);
         }
+    });
+
+    function updateProgress() {
+        const progress = metadata ? 
+            Math.round((collectedData.size / metadata.total_blocks) * 100) : 0;
+        status.textContent = `Escaneando... ${progress}% completado`;
     }
 
-    stopCamera() {
-        if (this.stream) {
-            this.stream.getTracks().forEach(track => track.stop());
-            this.stream = null;
-        }
-        this.scanning = false;
-        this.video.srcObject = null;
-        this.cameraContainer.classList.remove('active'); // Remove 'active' to show overlay
-    }
-
-    scan() {
-        if (!this.scanning) return;
-
-        if (this.video.videoWidth === 0 || this.video.videoHeight === 0) {
-            requestAnimationFrame(() => this.scan());
-            return;
-        }
-
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        canvas.width = this.video.videoWidth;
-        canvas.height = this.video.videoHeight;
-        
+    async function processCompleteData() {
         try {
-            context.drawImage(this.video, 0, 0, canvas.width, canvas.height);
-            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-            const code = jsQR(imageData.data, imageData.width, imageData.height);
+            // 1. Solicitar contraseña si es necesario
+            const password = metadata.encrypted ? prompt('Ingrese la contraseña:') : null;
 
-            if (code) {
-                this.handleQRCode(code.data);
+            // 2. Ensamblar y procesar bloques
+            const blocks = Array.from(collectedData.entries())
+                .sort((a, b) => a[0] - b[0])
+                .map(entry => base64ToBytes(entry[1]));
+
+            let decodedData = new Uint8Array();
+            for (const [index, block] of blocks.entries()) {
+                let decryptedBlock = metadata.encrypted ? 
+                    await decryptBlock(block, password) : block;
+                
+                decodedData = concatenateUint8Arrays(
+                    decodedData,
+                    await decompressBlock(decryptedBlock)
+                );
             }
-        } catch (error) {
-            console.error('Error en el escaneo:', error);
-        }
 
-        requestAnimationFrame(() => this.scan());
-    }
+            // 3. Verificar integridad
+            const hash = await sha3_256(decodedData);
+            if (hash !== metadata.hash) throw new Error('Fallo en verificación de hash');
 
-    handleQRCode(data) {
-        try {
-            const qrData = JSON.parse(data);
-            if (typeof qrData.index !== 'number' || typeof qrData.data !== 'string') {
-                throw new Error('Formato de datos QR inválido');
-            }
-            this.qrDataMap.set(qrData.index, qrData.data);
-            console.log(`QR Code detectado: índice ${qrData.index}`);
-            
-            if (this.qrDataMap.size === 1) {
-                this.promptPassword();
-            }
-        } catch (error) {
-            console.error('Error al analizar datos QR:', error);
-        }
-    }
+            // 4. Descargar archivo
+            const blob = new Blob([decodedData], { type: 'application/octet-stream' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = metadata.file_name;
+            link.click();
 
-    promptPassword() {
-        const password = prompt('Ingrese la contraseña para descifrar los datos:');
-        if (password !== null) {
-            this.password = password;
-        } else {
-            alert('Se requiere una contraseña para continuar.');
-            this.stopCamera();
+            status.textContent = `Archivo ${metadata.file_name} descargado!`;
+            resetScanner();
+
+        } catch (err) {
+            alert(`Error: ${err.message}`);
+            resetScanner();
         }
     }
 
-    async deriveKey(password, salt) {
-        const hash = await argon2.hash({
+    async function decryptBlock(data, password) {
+        // Implementación compatible con Python
+        const salt = data.slice(0, 16);
+        const nonce = data.slice(16, 28);
+        const tag = data.slice(28, 44);
+        const ciphertext = data.slice(44);
+
+        const key = await argon2.hash({
             pass: password,
             salt: salt,
             time: 2,
             mem: 102400,
-            parallelism: 8,
             hashLen: 32,
+            parallelism: 8,
             type: argon2.ArgonType.Argon2id
         });
-        return new Uint8Array(hash.hash);
-    }
 
-    async decryptData(encryptedData, password) {
-        const bytes = new Uint8Array([...window.atob(encryptedData)].map(c => c.charCodeAt(0)));
-        const salt = bytes.slice(0, 16);
-        const nonce = bytes.slice(16, 28);
-        const tag = bytes.slice(28, 44);
-        const ciphertext = bytes.slice(44);
-        const dataToDecrypt = new Uint8Array([...ciphertext, ...tag]);
-        
-        const keyMaterial = await this.deriveKey(password, salt);
-        const key = await crypto.subtle.importKey(
-            "raw",
-            keyMaterial,
-            { name: "AES-GCM" },
-            false,
-            ["decrypt"]
+        const cryptoKey = await crypto.subtle.importKey(
+            'raw', key.hash, 'AES-GCM', false, ['decrypt']
         );
-        
-        const decrypted = await crypto.subtle.decrypt(
-            {
-                name: "AES-GCM",
-                iv: nonce,
-                tagLength: 128
-            },
-            key,
-            dataToDecrypt
-        );
-        return new Uint8Array(decrypted);
-    }
-
-    decompressData(compressedData) {
-        // Placeholder: Implement with real decompression libraries (Zstandard/Brotli)
-        return compressedData;
-    }
-
-    async reconstructFile() {
-        if (this.qrDataMap.size === 0) {
-            alert('No se han escaneado QR codes.');
-            return;
-        }
-
-        if (!this.password) {
-            alert('Proporcione la contraseña.');
-            return;
-        }
 
         try {
-            const encryptedMetadata = this.qrDataMap.get(0);
-            if (!encryptedMetadata) {
-                throw new Error('Metadato faltante (índice 0).');
-            }
-            const compressedMetadata = await this.decryptData(encryptedMetadata, this.password);
-            const metadataStr = new TextDecoder().decode(this.decompressData(compressedMetadata));
-            const metadata = JSON.parse(metadataStr);
-            const fileName = metadata.file_name;
-            const expectedHash = metadata.hash;
-
-            const maxIndex = Math.max(...this.qrDataMap.keys());
-            let reconstructedData = new Uint8Array();
-
-            for (let i = 1; i <= maxIndex; i++) {
-                const encryptedBlock = this.qrDataMap.get(i);
-                if (!encryptedBlock) {
-                    throw new Error(`Falta el bloque ${i}.`);
-                }
-                const compressedBlock = await this.decryptData(encryptedBlock, this.password);
-                const blockData = this.decompressData(compressedBlock);
-                reconstructedData = new Uint8Array([...reconstructedData, ...blockData]);
-            }
-
-            const computedHash = sha3_256(reconstructedData);
-            if (computedHash !== expectedHash) {
-                throw new Error('Verificación de integridad fallida: hashes no coinciden.');
-            }
-
-            this.downloadFile(reconstructedData, fileName);
-            alert('Archivo reconstruido exitosamente.');
-        } catch (error) {
-            console.error('Error al reconstruir el archivo:', error);
-            alert('Error al reconstruir el archivo: ' + error.message);
+            const decrypted = await crypto.subtle.decrypt(
+                { name: 'AES-GCM', iv: nonce, tagLength: 128 },
+                cryptoKey,
+                concatenateUint8Arrays(ciphertext, tag)
+            );
+            return new Uint8Array(decrypted);
+        } catch {
+            throw new Error('Contraseña incorrecta o datos corruptos');
         }
     }
 
-    downloadFile(data, filename) {
-        const blob = new Blob([data], { type: 'application/octet-stream' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+    async function decompressBlock(data) {
+        // Descompresión Zstandard + Brotli
+        const zstdDecoder = new zstd.ZstdCodec.ZstdStreaming();
+        await zstdDecoder.init();
+        const zstdDecompressed = zstdDecoder.decompress(data);
+
+        const brotliDecompressed = await new Response(
+            new Blob([zstdDecompressed]).stream().pipeThrough(new DecompressionStream('br'))
+        ).arrayBuffer();
+
+        return new Uint8Array(brotliDecompressed);
     }
 
-    cleanup() {
-        this.stopCamera();
+    // Utilidades
+    function base64ToBytes(base64) {
+        return Uint8Array.from(atob(base64), c => c.charCodeAt(0));
     }
-}
 
-document.addEventListener('DOMContentLoaded', () => {
-    const scanner = new QRScanner();
+    async function sha3_256(data) {
+        const hashBuffer = await crypto.subtle.digest('SHA3-256', data);
+        return Array.from(new Uint8Array(hashBuffer))
+            .map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    function concatenateUint8Arrays(...arrays) {
+        let totalLength = arrays.reduce((acc, arr) => acc + arr.length, 0);
+        let result = new Uint8Array(totalLength);
+        let offset = 0;
+        for (const arr of arrays) {
+            result.set(arr, offset);
+            offset += arr.length;
+        }
+        return result;
+    }
+
+    function resetScanner() {
+        scanner.stop();
+        isScanning = false;
+        startBtn.textContent = 'Iniciar Escaneo';
+        collectedData.clear();
+        metadata = null;
+    }
 });
