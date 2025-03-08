@@ -9,7 +9,8 @@ class QRScanner {
         this.scanning = false;
         this.qrDataMap = new Map();
         this.password = null;
-        this.totalBlocks = null; // Estimado tras leer metadatos
+        this.totalBlocks = null;
+        this.decoder = new ZXing.BrowserMultiFormatReader();
         this.init();
     }
 
@@ -73,76 +74,30 @@ class QRScanner {
     scan() {
         if (!this.scanning) return;
 
-        if (this.video.videoWidth === 0 || this.video.videoHeight === 0) {
-            requestAnimationFrame(() => this.scan());
-            return;
-        }
-
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        canvas.width = this.video.videoWidth;
-        canvas.height = this.video.videoHeight;
-        
-        context.drawImage(this.video, 0, 0, canvas.width, canvas.height);
-        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-        
-        // Detectar múltiples QR usando jsQR (limitado a uno por frame por defecto)
-        const code = jsQR(imageData.data, imageData.width, imageData.height, {
-            inversionAttempts: 'dontInvert'
-        });
-
-        if (code) {
-            this.handleQRCode(code.data);
-        }
-
-        // Escaneo adicional para múltiples QR dividiendo la imagen en regiones
-        this.scanMultipleRegions(imageData, canvas.width, canvas.height);
-
-        setTimeout(() => this.scan(), 100); // 10 FPS para reducir carga
-    }
-
-    scanMultipleRegions(imageData, width, height) {
-        const regions = [
-            { x: 0, y: 0, w: width / 2, h: height / 2 }, // Top-left
-            { x: width / 2, y: 0, w: width / 2, h: height / 2 }, // Top-right
-            { x: 0, y: height / 2, w: width / 2, h: height / 2 }, // Bottom-left
-            { x: width / 2, y: height / 2, w: width / 2, h: height / 2 } // Bottom-right
-        ];
-
-        regions.forEach(region => {
-            const regionData = this.extractRegion(imageData, region.x, region.y, region.w, region.h);
-            const code = jsQR(regionData.data, region.w, region.h);
-            if (code) {
-                this.handleQRCode(code.data);
+        this.decoder.decodeFromVideoElement(this.video, (result, err) => {
+            if (result) {
+                this.handleQRCode(result.getText());
+            }
+            if (err && !(err instanceof ZXing.NotFoundException)) {
+                console.error('Error en el escaneo:', err);
+            }
+            if (this.scanning) {
+                setTimeout(() => this.scan(), 100); // 10 FPS
             }
         });
-    }
-
-    extractRegion(imageData, x, y, w, h) {
-        const newData = new Uint8ClampedArray(w * h * 4);
-        for (let i = 0; i < h; i++) {
-            for (let j = 0; j < w; j++) {
-                const srcIndex = ((y + i) * imageData.width + (x + j)) * 4;
-                const destIndex = (i * w + j) * 4;
-                newData[destIndex] = imageData.data[srcIndex];
-                newData[destIndex + 1] = imageData.data[srcIndex + 1];
-                newData[destIndex + 2] = imageData.data[srcIndex + 2];
-                newData[destIndex + 3] = imageData.data[srcIndex + 3];
-            }
-        }
-        return new ImageData(newData, w, h);
     }
 
     handleQRCode(data) {
         try {
             const qrData = JSON.parse(data);
-            if (typeof qrData.index !== 'number' || typeof qrData.data !== 'string') {
+            if (!('index' in qrData) || !('total' in qrData) || !('data' in qrData)) {
                 throw new Error('Formato de datos QR inválido');
             }
             if (!this.qrDataMap.has(qrData.index)) {
                 this.qrDataMap.set(qrData.index, qrData.data);
+                this.totalBlocks = qrData.total; // Actualizar total desde cualquier QR
                 this.updateProgress(this.qrDataMap.size, this.totalBlocks);
-                console.log(`QR detectado: índice ${qrData.index}, total: ${this.qrDataMap.size}`);
+                console.log(`QR detectado: índice ${qrData.index}, total: ${this.qrDataMap.size}/${this.totalBlocks}`);
             }
             
             if (qrData.index === 0 && this.qrDataMap.size === 1) {
@@ -245,10 +200,13 @@ class QRScanner {
             const metadata = JSON.parse(metadataStr);
             const fileName = metadata.file_name;
             const expectedHash = metadata.hash;
-            this.totalBlocks = this.qrDataMap.size; // Actualizar total estimado
+
+            if (!this.totalBlocks) {
+                throw new Error('No se detectó el total de bloques.');
+            }
             this.updateProgress(this.qrDataMap.size, this.totalBlocks);
 
-            const maxIndex = Math.max(...this.qrDataMap.keys());
+            const maxIndex = this.totalBlocks - 1; // Total incluye metadatos
             let reconstructedData = new Uint8Array();
 
             for (let i = 1; i <= maxIndex; i++) {
@@ -304,4 +262,3 @@ class QRScanner {
 document.addEventListener('DOMContentLoaded', () => {
     const scanner = new QRScanner();
 });
-
