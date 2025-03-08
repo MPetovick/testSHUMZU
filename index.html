@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SHUMZU - Secure QR Transfer</title>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="/testSHUMZU/styles.css">
 </head>
 <body>
     <header class="logo-container">
-        <img id="logo" src="rsc/logo_SHUMZU.png" alt="SHUMZU Logo">
+        <img id="logo" src="/testSHUMZU/rsc/logo_SHUMZU.png" alt="SHUMZU Logo">
     </header>
 
     <main>
@@ -18,6 +18,7 @@
         <div class="camera-container" id="cameraContainer">
             <video id="video" autoplay playsinline></video>
             <canvas id="overlayCanvas" class="overlay-canvas"></canvas>
+            <div id="scanArea" class="scan-area"></div>
             <div class="inactive-overlay" id="inactiveOverlay">
                 <svg class="fingerprint" viewBox="0 0 100 100">
                     <path d="M50 10 Q60 20 50 30 Q40 20 50 10" stroke="var(--neon-cyan)" stroke-width="2" fill="none"/>
@@ -62,6 +63,8 @@
     <script src="https://unpkg.com/js-sha3@0.8.0/build/sha3.min.js"></script>
     <script src="https://unpkg.com/zstd-js@0.2.1/dist/zstd.min.js"></script>
     <script src="https://unpkg.com/brotli-decompress-js@1.0.0/brotli-decompress.min.js"></script>
-    <script src="script.js"></script>
+    <script src="/testSHUMZU/script.js"></script>
 </body>
 </html>
+    
+
