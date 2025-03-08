@@ -40,19 +40,24 @@ class QRScanner {
             this.cameraContainer.classList.add('active');
             this.stream = await navigator.mediaDevices.getUserMedia({ 
                 video: { 
-                    facingMode: 'environment',
+                    facingMode: 'environment', // Usar la cámara trasera
                     width: { ideal: 1280 },
                     height: { ideal: 720 }
                 } 
             });
             this.video.srcObject = this.stream;
             
+            // Esperar a que el video esté listo
             await new Promise((resolve) => {
                 this.video.onloadedmetadata = () => {
                     this.video.play().then(resolve);
                 };
             });
-            
+
+            // Ajustar el tamaño del canvas de superposición
+            this.overlayCanvas.width = this.video.videoWidth;
+            this.overlayCanvas.height = this.video.videoHeight;
+
             this.scanning = true;
             this.scan();
         } catch (err) {
