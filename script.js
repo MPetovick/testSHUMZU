@@ -304,3 +304,4 @@ class QRScanner {
 document.addEventListener('DOMContentLoaded', () => {
     const scanner = new QRScanner();
 });
+
