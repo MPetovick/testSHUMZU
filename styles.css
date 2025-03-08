@@ -26,13 +26,6 @@ body {
     filter: drop-shadow(0 0 15px var(--neon-cyan));
 }
 
-h1 {
-    color: var(--neon-cyan);
-    text-shadow: 0 0 10px var(--neon-cyan);
-    font-size: clamp(1.5rem, 5vw, 2.5rem);
-    margin: 1rem 0;
-}
-
 h2 {
     color: var(--neon-cyan);
     text-shadow: 0 0 10px var(--neon-cyan);
