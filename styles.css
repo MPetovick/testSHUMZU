@@ -151,13 +151,6 @@ h2 {
     box-shadow: 0 0 10px var(--neon-cyan);
 }
 
-.instruction-text {
-    color: #fff;
-    font-size: 0.9rem;
-    margin-top: 0.5rem;
-    opacity: 0.8;
-}
-
 .shumzu-button {
     background-color: var(--neon-cyan);
     color: var(--dark-bg);
