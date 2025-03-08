@@ -1,3 +1,5 @@
+import { BrowserQRCodeReader, BrowserQRCodeSvgWriter } from '@zxing/library';
+
 class QRScanner {
     constructor() {
         this.video = document.getElementById('video');
@@ -5,11 +7,14 @@ class QRScanner {
         this.inactiveOverlay = document.getElementById('inactiveOverlay');
         this.progressText = document.getElementById('progressText');
         this.progressBar = document.getElementById('progressBar');
+        this.canvas = document.createElement('canvas');
+        this.context = this.canvas.getContext('2d', { willReadFrequently: true });
         this.stream = null;
         this.scanning = false;
         this.qrDataMap = new Map();
         this.password = null;
         this.totalBlocks = null;
+        this.codeReader = new BrowserQRCodeReader();
         this.init();
     }
 
@@ -70,72 +75,25 @@ class QRScanner {
         this.updateProgress(0, null);
     }
 
-    scan() {
+    async scan() {
         if (!this.scanning) return;
 
-        if (this.video.videoWidth === 0 || this.video.videoHeight === 0) {
+        try {
+            const result = await this.codeReader.decodeFromVideoElement(this.video);
+            if (result) {
+                this.handleQRCode(result.getText(), result.getResultPoints());
+                this.drawQRIndicator(result.getResultPoints()); // Dibuja un indicador visual
+            }
+        } catch (error) {
+            console.error('Error al escanear:', error);
+        }
+
+        if (this.scanning) {
             requestAnimationFrame(() => this.scan());
-            return;
         }
-
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        canvas.width = this.video.videoWidth;
-        canvas.height = this.video.videoHeight;
-        
-        context.drawImage(this.video, 0, 0, canvas.width, canvas.height);
-        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-        
-        this.processImageData(imageData);
-
-        setTimeout(() => this.scan(), 100); // 10 FPS para reducir carga
     }
 
-    processImageData(imageData) {
-        const code = jsQR(imageData.data, imageData.width, imageData.height, {
-            inversionAttempts: 'dontInvert'
-        });
-
-        if (code) {
-            this.handleQRCode(code.data);
-        }
-
-        this.scanMultipleRegions(imageData);
-    }
-
-    scanMultipleRegions(imageData) {
-        const regions = [
-            { x: 0, y: 0, w: imageData.width / 2, h: imageData.height / 2 }, // Top-left
-            { x: imageData.width / 2, y: 0, w: imageData.width / 2, h: imageData.height / 2 }, // Top-right
-            { x: 0, y: imageData.height / 2, w: imageData.width / 2, h: imageData.height / 2 }, // Bottom-left
-            { x: imageData.width / 2, y: imageData.height / 2, w: imageData.width / 2, h: imageData.height / 2 } // Bottom-right
-        ];
-
-        regions.forEach(region => {
-            const regionData = this.extractRegion(imageData, region.x, region.y, region.w, region.h);
-            const code = jsQR(regionData.data, region.w, region.h);
-            if (code) {
-                this.handleQRCode(code.data);
-            }
-        });
-    }
-
-    extractRegion(imageData, x, y, w, h) {
-        const newData = new Uint8ClampedArray(w * h * 4);
-        for (let i = 0; i < h; i++) {
-            for (let j = 0; j < w; j++) {
-                const srcIndex = ((y + i) * imageData.width + (x + j)) * 4;
-                const destIndex = (i * w + j) * 4;
-                newData[destIndex] = imageData.data[srcIndex];
-                newData[destIndex + 1] = imageData.data[srcIndex + 1];
-                newData[destIndex + 2] = imageData.data[srcIndex + 2];
-                newData[destIndex + 3] = imageData.data[srcIndex + 3];
-            }
-        }
-        return new ImageData(newData, w, h);
-    }
-
-    handleQRCode(data) {
+    handleQRCode(data, points) {
         try {
             const qrData = JSON.parse(data);
             if (typeof qrData.index !== 'number' || typeof qrData.data !== 'string') {
@@ -153,6 +111,23 @@ class QRScanner {
         } catch (error) {
             console.error('Error al analizar datos QR:', error);
         }
+    }
+
+    drawQRIndicator(points) {
+        // Dibuja un polígono alrededor del código QR detectado
+        this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.context.strokeStyle = '#00FF00';
+        this.context.lineWidth = 2;
+        this.context.beginPath();
+        points.forEach((point, index) => {
+            if (index === 0) {
+                this.context.moveTo(point.getX(), point.getY());
+            } else {
+                this.context.lineTo(point.getX(), point.getY());
+            }
+        });
+        this.context.closePath();
+        this.context.stroke();
     }
 
     promptPassword() {
