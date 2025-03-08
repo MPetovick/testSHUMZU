@@ -1,8 +1,6 @@
 class QRScanner {
     constructor() {
         this.video = document.getElementById('video');
-        this.canvas = document.getElementById('overlayCanvas');
-        this.ctx = this.canvas.getContext('2d');
         this.cameraContainer = document.getElementById('cameraContainer');
         this.inactiveOverlay = document.getElementById('inactiveOverlay');
         this.progressText = document.getElementById('progressText');
@@ -12,8 +10,6 @@ class QRScanner {
         this.qrDataMap = new Map();
         this.password = null;
         this.totalBlocks = null;
-        this.decoder = new ZXing.BrowserMultiFormatReader();
-        this.detectedQRs = []; // Almacenar posiciones de QR detectados
         this.init();
     }
 
@@ -50,11 +46,7 @@ class QRScanner {
             
             await new Promise((resolve) => {
                 this.video.onloadedmetadata = () => {
-                    this.video.play().then(() => {
-                        this.canvas.width = this.video.videoWidth;
-                        this.canvas.height = this.video.videoHeight;
-                        resolve();
-                    });
+                    this.video.play().then(resolve);
                 };
             });
             
@@ -75,61 +67,84 @@ class QRScanner {
         this.scanning = false;
         this.video.srcObject = null;
         this.cameraContainer.classList.remove('active');
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.updateProgress(0, null);
     }
 
     scan() {
-        if (!this.scanning || !this.video.srcObject) return;
+        if (!this.scanning) return;
 
-        this.decoder.decodeFromVideoElement(this.video, (result, err) => {
-            if (result) {
-                this.detectedQRs = result.resultPoints.map(point => ({
-                    x: point.x,
-                    y: point.y,
-                    width: result.width || 100, // Tamaño estimado si no está disponible
-                    height: result.height || 100,
-                    text: result.getText()
-                }));
-                this.handleQRCode(result.getText());
-            }
-            if (err && !(err instanceof ZXing.NotFoundException)) {
-                console.error('Error en el escaneo:', err);
-                this.detectedQRs = []; // Limpiar si hay error
-            } else if (!result) {
-                this.detectedQRs = []; // Limpiar si no se detecta nada
-            }
+        if (this.video.videoWidth === 0 || this.video.videoHeight === 0) {
+            requestAnimationFrame(() => this.scan());
+            return;
+        }
 
-            this.drawOverlay();
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.width = this.video.videoWidth;
+        canvas.height = this.video.videoHeight;
+        
+        context.drawImage(this.video, 0, 0, canvas.width, canvas.height);
+        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+        
+        this.processImageData(imageData);
 
-            if (this.scanning) {
-                requestAnimationFrame(() => this.scan()); // Usar RAF para mejor rendimiento
+        setTimeout(() => this.scan(), 100); // 10 FPS para reducir carga
+    }
+
+    processImageData(imageData) {
+        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+            inversionAttempts: 'dontInvert'
+        });
+
+        if (code) {
+            this.handleQRCode(code.data);
+        }
+
+        this.scanMultipleRegions(imageData);
+    }
+
+    scanMultipleRegions(imageData) {
+        const regions = [
+            { x: 0, y: 0, w: imageData.width / 2, h: imageData.height / 2 }, // Top-left
+            { x: imageData.width / 2, y: 0, w: imageData.width / 2, h: imageData.height / 2 }, // Top-right
+            { x: 0, y: imageData.height / 2, w: imageData.width / 2, h: imageData.height / 2 }, // Bottom-left
+            { x: imageData.width / 2, y: imageData.height / 2, w: imageData.width / 2, h: imageData.height / 2 } // Bottom-right
+        ];
+
+        regions.forEach(region => {
+            const regionData = this.extractRegion(imageData, region.x, region.y, region.w, region.h);
+            const code = jsQR(regionData.data, region.w, region.h);
+            if (code) {
+                this.handleQRCode(code.data);
             }
         });
     }
 
-    drawOverlay() {
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        this.detectedQRs.forEach(qr => {
-            const parsed = JSON.parse(qr.text);
-            const color = this.qrDataMap.has(parsed.index) ? 'limegreen' : 'red';
-            this.ctx.strokeStyle = color;
-            this.ctx.lineWidth = 3;
-            this.ctx.strokeRect(qr.x - qr.width / 2, qr.y - qr.height / 2, qr.width, qr.height);
-        });
+    extractRegion(imageData, x, y, w, h) {
+        const newData = new Uint8ClampedArray(w * h * 4);
+        for (let i = 0; i < h; i++) {
+            for (let j = 0; j < w; j++) {
+                const srcIndex = ((y + i) * imageData.width + (x + j)) * 4;
+                const destIndex = (i * w + j) * 4;
+                newData[destIndex] = imageData.data[srcIndex];
+                newData[destIndex + 1] = imageData.data[srcIndex + 1];
+                newData[destIndex + 2] = imageData.data[srcIndex + 2];
+                newData[destIndex + 3] = imageData.data[srcIndex + 3];
+            }
+        }
+        return new ImageData(newData, w, h);
     }
 
     handleQRCode(data) {
         try {
             const qrData = JSON.parse(data);
-            if (!('index' in qrData) || !('total' in qrData) || !('data' in qrData)) {
+            if (typeof qrData.index !== 'number' || typeof qrData.data !== 'string') {
                 throw new Error('Formato de datos QR inválido');
             }
             if (!this.qrDataMap.has(qrData.index)) {
                 this.qrDataMap.set(qrData.index, qrData.data);
-                this.totalBlocks = qrData.total;
                 this.updateProgress(this.qrDataMap.size, this.totalBlocks);
-                console.log(`QR detectado: índice ${qrData.index}, total: ${this.qrDataMap.size}/${this.totalBlocks}`);
+                console.log(`QR detectado: índice ${qrData.index}, total: ${this.qrDataMap.size}`);
             }
             
             if (qrData.index === 0 && this.qrDataMap.size === 1) {
@@ -198,7 +213,7 @@ class QRScanner {
     decompressData(compressedData) {
         try {
             const zstdDecompressed = ZSTD.decompress(compressedData);
-            const brotliDecompressed = brotliDecompress(zstdDecompressed);
+            const brotliDecompressed = BrotliDec(zstdDecompressed);
             return brotliDecompressed;
         } catch (error) {
             throw new Error('Error al descomprimir los datos: ' + error.message);
@@ -232,13 +247,10 @@ class QRScanner {
             const metadata = JSON.parse(metadataStr);
             const fileName = metadata.file_name;
             const expectedHash = metadata.hash;
-
-            if (!this.totalBlocks) {
-                throw new Error('No se detectó el total de bloques.');
-            }
+            this.totalBlocks = this.qrDataMap.size; // Actualizar total estimado
             this.updateProgress(this.qrDataMap.size, this.totalBlocks);
 
-            const maxIndex = this.totalBlocks - 1;
+            const maxIndex = Math.max(...this.qrDataMap.keys());
             let reconstructedData = new Uint8Array();
 
             for (let i = 1; i <= maxIndex; i++) {
@@ -262,8 +274,8 @@ class QRScanner {
                 throw new Error('Verificación de integridad fallida: hashes no coinciden.');
             }
 
-            this.downloadFile(reconstructedData, `SHUMZU_backups/${fileName}`);
-            alert('Archivo reconstruido exitosamente. Por favor, guárdelo en la carpeta "SHUMZU_backups".');
+            this.downloadFile(reconstructedData, fileName);
+            alert('Archivo reconstruido exitosamente.');
             this.cleanup();
         } catch (error) {
             console.error('Error al reconstruir el archivo:', error);
@@ -288,7 +300,6 @@ class QRScanner {
         this.qrDataMap.clear();
         this.password = null;
         this.totalBlocks = null;
-        this.detectedQRs = [];
     }
 }
 
