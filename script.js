@@ -1,3 +1,5 @@
+import { BrowserQRCodeReader, BrowserQRCodeSvgWriter } from '@zxing/library';
+
 class QRScanner {
     constructor() {
         this.video = document.getElementById('video');
