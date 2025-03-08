@@ -1,5 +1,3 @@
-import { BrowserQRCodeReader, BrowserQRCodeSvgWriter } from '@zxing/library';
-
 class QRScanner {
     constructor() {
         this.video = document.getElementById('video');
@@ -14,7 +12,7 @@ class QRScanner {
         this.qrDataMap = new Map();
         this.password = null;
         this.totalBlocks = null;
-        this.codeReader = new ZXing.BrowserQRCodeReader();
+        this.codeReader = new ZXing.BrowserQRCodeReader(); // Usamos el objeto global ZXing
         this.init();
     }
 
@@ -42,21 +40,20 @@ class QRScanner {
             this.cameraContainer.classList.add('active');
             this.stream = await navigator.mediaDevices.getUserMedia({ 
                 video: { 
-                    facingMode: 'environment', // Usar la cámara trasera
+                    facingMode: { ideal: 'environment' }, // Prioriza cámara trasera
                     width: { ideal: 1280 },
                     height: { ideal: 720 }
                 } 
             });
             this.video.srcObject = this.stream;
-            
-            // Esperar a que el video esté listo
-            await new Promise((resolve) => {
+
+            await new Promise((resolve, reject) => {
                 this.video.onloadedmetadata = () => {
-                    this.video.play().then(resolve);
+                    this.video.play().then(resolve).catch(err => reject('Error al reproducir el video: ' + err.message));
                 };
+                this.video.onerror = () => reject('Error al cargar el video');
             });
 
-            // Ajustar el tamaño del canvas de superposición
             this.overlayCanvas.width = this.video.videoWidth;
             this.overlayCanvas.height = this.video.videoHeight;
 
@@ -87,10 +84,10 @@ class QRScanner {
             const result = await this.codeReader.decodeFromVideoElement(this.video);
             if (result) {
                 this.handleQRCode(result.text, result.resultPoints);
-                this.drawQRIndicator(result.resultPoints); // Dibuja un indicador visual
+                this.drawQRIndicator(result.resultPoints);
             }
         } catch (error) {
-            console.error('Error al escanear:', error);
+            console.log('Sin QR detectado o error:', error); // Log para depuración
         }
 
         if (this.scanning) {
@@ -119,7 +116,6 @@ class QRScanner {
     }
 
     drawQRIndicator(points) {
-        // Dibuja un polígono alrededor del código QR detectado
         this.overlayContext.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
         this.overlayContext.strokeStyle = '#00FF00';
         this.overlayContext.lineWidth = 2;
