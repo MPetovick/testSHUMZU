@@ -1,6 +1,8 @@
 class QRScanner {
     constructor() {
         this.video = document.getElementById('video');
+        this.canvas = document.getElementById('overlayCanvas');
+        this.ctx = this.canvas.getContext('2d');
         this.cameraContainer = document.getElementById('cameraContainer');
         this.inactiveOverlay = document.getElementById('inactiveOverlay');
         this.progressText = document.getElementById('progressText');
@@ -11,6 +13,7 @@ class QRScanner {
         this.password = null;
         this.totalBlocks = null;
         this.decoder = new ZXing.BrowserMultiFormatReader();
+        this.detectedQRs = []; // Almacenar posiciones de QR detectados
         this.init();
     }
 
@@ -47,7 +50,11 @@ class QRScanner {
             
             await new Promise((resolve) => {
                 this.video.onloadedmetadata = () => {
-                    this.video.play().then(resolve);
+                    this.video.play().then(() => {
+                        this.canvas.width = this.video.videoWidth;
+                        this.canvas.height = this.video.videoHeight;
+                        resolve();
+                    });
                 };
             });
             
@@ -68,22 +75,47 @@ class QRScanner {
         this.scanning = false;
         this.video.srcObject = null;
         this.cameraContainer.classList.remove('active');
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.updateProgress(0, null);
     }
 
     scan() {
-        if (!this.scanning) return;
+        if (!this.scanning || !this.video.srcObject) return;
 
         this.decoder.decodeFromVideoElement(this.video, (result, err) => {
             if (result) {
+                this.detectedQRs = result.resultPoints.map(point => ({
+                    x: point.x,
+                    y: point.y,
+                    width: result.width || 100, // Tamaño estimado si no está disponible
+                    height: result.height || 100,
+                    text: result.getText()
+                }));
                 this.handleQRCode(result.getText());
             }
             if (err && !(err instanceof ZXing.NotFoundException)) {
                 console.error('Error en el escaneo:', err);
+                this.detectedQRs = []; // Limpiar si hay error
+            } else if (!result) {
+                this.detectedQRs = []; // Limpiar si no se detecta nada
             }
+
+            this.drawOverlay();
+
             if (this.scanning) {
-                setTimeout(() => this.scan(), 100); // 10 FPS
+                requestAnimationFrame(() => this.scan()); // Usar RAF para mejor rendimiento
             }
+        });
+    }
+
+    drawOverlay() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.detectedQRs.forEach(qr => {
+            const parsed = JSON.parse(qr.text);
+            const color = this.qrDataMap.has(parsed.index) ? 'limegreen' : 'red';
+            this.ctx.strokeStyle = color;
+            this.ctx.lineWidth = 3;
+            this.ctx.strokeRect(qr.x - qr.width / 2, qr.y - qr.height / 2, qr.width, qr.height);
         });
     }
 
@@ -95,7 +127,7 @@ class QRScanner {
             }
             if (!this.qrDataMap.has(qrData.index)) {
                 this.qrDataMap.set(qrData.index, qrData.data);
-                this.totalBlocks = qrData.total; // Actualizar total desde cualquier QR
+                this.totalBlocks = qrData.total;
                 this.updateProgress(this.qrDataMap.size, this.totalBlocks);
                 console.log(`QR detectado: índice ${qrData.index}, total: ${this.qrDataMap.size}/${this.totalBlocks}`);
             }
@@ -206,7 +238,7 @@ class QRScanner {
             }
             this.updateProgress(this.qrDataMap.size, this.totalBlocks);
 
-            const maxIndex = this.totalBlocks - 1; // Total incluye metadatos
+            const maxIndex = this.totalBlocks - 1;
             let reconstructedData = new Uint8Array();
 
             for (let i = 1; i <= maxIndex; i++) {
@@ -230,8 +262,8 @@ class QRScanner {
                 throw new Error('Verificación de integridad fallida: hashes no coinciden.');
             }
 
-            this.downloadFile(reconstructedData, fileName);
-            alert('Archivo reconstruido exitosamente.');
+            this.downloadFile(reconstructedData, `SHUMZU_backups/${fileName}`);
+            alert('Archivo reconstruido exitosamente. Por favor, guárdelo en la carpeta "SHUMZU_backups".');
             this.cleanup();
         } catch (error) {
             console.error('Error al reconstruir el archivo:', error);
@@ -256,6 +288,7 @@ class QRScanner {
         this.qrDataMap.clear();
         this.password = null;
         this.totalBlocks = null;
+        this.detectedQRs = [];
     }
 }
 
