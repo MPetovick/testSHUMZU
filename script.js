@@ -2,6 +2,7 @@ class QRScanner {
     constructor() {
         this.video = document.getElementById('video');
         this.cameraContainer = document.getElementById('cameraContainer');
+        this.scanArea = document.getElementById('scanArea');
         this.inactiveOverlay = document.getElementById('inactiveOverlay');
         this.progressText = document.getElementById('progressText');
         this.progressBar = document.getElementById('progressBar');
@@ -12,7 +13,12 @@ class QRScanner {
         this.qrDataMap = new Map();
         this.password = null;
         this.totalBlocks = null;
-        this.codeReader = new ZXing.BrowserQRCodeReader(); // Usamos el objeto global ZXing
+        if (typeof ZXing === 'undefined') {
+            console.error('ZXing no está cargado');
+            alert('Error: Librería ZXing no cargada');
+            return;
+        }
+        this.codeReader = new ZXing.BrowserQRCodeReader();
         this.init();
     }
 
@@ -21,8 +27,10 @@ class QRScanner {
             alert('Este navegador no soporta el acceso a la cámara.');
             return;
         }
-
-        this.cameraContainer.addEventListener('click', () => this.toggleCamera());
+        this.cameraContainer.addEventListener('click', () => {
+            console.log('Clic en cameraContainer');
+            this.toggleCamera();
+        });
         document.getElementById('reconstructButton').addEventListener('click', () => this.reconstructFile());
         window.addEventListener('beforeunload', () => this.cleanup());
     }
@@ -37,19 +45,21 @@ class QRScanner {
 
     async startCamera() {
         try {
+            console.log('Intentando iniciar la cámara');
             this.cameraContainer.classList.add('active');
             this.stream = await navigator.mediaDevices.getUserMedia({ 
                 video: { 
-                    facingMode: { ideal: 'environment' }, // Prioriza cámara trasera
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
+                    facingMode: { ideal: 'environment' },
+                    width: { ideal: 640 },
+                    height: { ideal: 480 }
                 } 
             });
             this.video.srcObject = this.stream;
 
             await new Promise((resolve, reject) => {
                 this.video.onloadedmetadata = () => {
-                    this.video.play().then(resolve).catch(err => reject('Error al reproducir el video: ' + err.message));
+                    console.log('Metadata cargada, reproduciendo video');
+                    this.video.play().then(resolve).catch(err => reject('Error al reproducir el video: ' + err));
                 };
                 this.video.onerror = () => reject('Error al cargar el video');
             });
@@ -74,22 +84,26 @@ class QRScanner {
         this.scanning = false;
         this.video.srcObject = null;
         this.cameraContainer.classList.remove('active');
+        this.scanArea.classList.remove('active');
         this.updateProgress(0, null);
     }
 
     async scan() {
         if (!this.scanning) return;
-
+        console.log('Escaneando...');
         try {
             const result = await this.codeReader.decodeFromVideoElement(this.video);
             if (result) {
+                console.log('QR detectado:', result.text);
                 this.handleQRCode(result.text, result.resultPoints);
                 this.drawQRIndicator(result.resultPoints);
+                this.scanArea.classList.add('active');
+                setTimeout(() => this.scanArea.classList.remove('active'), 1000);
             }
         } catch (error) {
-            console.log('Sin QR detectado o error:', error); // Log para depuración
+            console.log('Sin QR detectado:', error);
+            this.scanArea.classList.remove('active');
         }
-
         if (this.scanning) {
             requestAnimationFrame(() => this.scan());
         }
@@ -106,7 +120,6 @@ class QRScanner {
                 this.updateProgress(this.qrDataMap.size, this.totalBlocks);
                 console.log(`QR detectado: índice ${qrData.index}, total: ${this.qrDataMap.size}`);
             }
-            
             if (qrData.index === 0 && this.qrDataMap.size === 1) {
                 this.promptPassword();
             }
@@ -223,7 +236,7 @@ class QRScanner {
             const metadata = JSON.parse(metadataStr);
             const fileName = metadata.file_name;
             const expectedHash = metadata.hash;
-            this.totalBlocks = this.qrDataMap.size; // Actualizar total estimado
+            this.totalBlocks = this.qrDataMap.size;
             this.updateProgress(this.qrDataMap.size, this.totalBlocks);
 
             const maxIndex = Math.max(...this.qrDataMap.keys());
@@ -280,5 +293,6 @@ class QRScanner {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM cargado, iniciando QRScanner');
     const scanner = new QRScanner();
 });
