@@ -5,14 +5,14 @@ class QRScanner {
         this.inactiveOverlay = document.getElementById('inactiveOverlay');
         this.progressText = document.getElementById('progressText');
         this.progressBar = document.getElementById('progressBar');
-        this.canvas = document.createElement('canvas');
-        this.context = this.canvas.getContext('2d', { willReadFrequently: true });
+        this.overlayCanvas = document.getElementById('overlayCanvas');
+        this.overlayContext = this.overlayCanvas.getContext('2d');
         this.stream = null;
         this.scanning = false;
         this.qrDataMap = new Map();
         this.password = null;
         this.totalBlocks = null;
-        this.codeReader = new BrowserQRCodeReader();
+        this.codeReader = new ZXing.BrowserQRCodeReader();
         this.init();
     }
 
@@ -79,8 +79,8 @@ class QRScanner {
         try {
             const result = await this.codeReader.decodeFromVideoElement(this.video);
             if (result) {
-                this.handleQRCode(result.getText(), result.getResultPoints());
-                this.drawQRIndicator(result.getResultPoints()); // Dibuja un indicador visual
+                this.handleQRCode(result.text, result.resultPoints);
+                this.drawQRIndicator(result.resultPoints); // Dibuja un indicador visual
             }
         } catch (error) {
             console.error('Error al escanear:', error);
@@ -113,19 +113,19 @@ class QRScanner {
 
     drawQRIndicator(points) {
         // Dibuja un polígono alrededor del código QR detectado
-        this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        this.context.strokeStyle = '#00FF00';
-        this.context.lineWidth = 2;
-        this.context.beginPath();
+        this.overlayContext.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
+        this.overlayContext.strokeStyle = '#00FF00';
+        this.overlayContext.lineWidth = 2;
+        this.overlayContext.beginPath();
         points.forEach((point, index) => {
             if (index === 0) {
-                this.context.moveTo(point.getX(), point.getY());
+                this.overlayContext.moveTo(point.x, point.y);
             } else {
-                this.context.lineTo(point.getX(), point.getY());
+                this.overlayContext.lineTo(point.x, point.y);
             }
         });
-        this.context.closePath();
-        this.context.stroke();
+        this.overlayContext.closePath();
+        this.overlayContext.stroke();
     }
 
     promptPassword() {
