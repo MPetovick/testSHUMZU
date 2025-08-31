@@ -3,25 +3,151 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapa con Geolocalización Mejorado - Enterprise</title>
+    <title>Aventura Geolocalizada RPG</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { background-color: #f5f7fa; color: #333; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
-        #map { flex: 1; width: 100%; }
+        body { background-color: #1a1a2e; color: #e6e6e6; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+        #map { flex: 1; width: 100%; z-index: 1; }
+        
+        /* Panel de estado del jugador - Más compacto */
+        .player-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(26, 26, 46, 0.95);
+            padding: 10px 12px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 190px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .player-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .player-avatar {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 1.1rem;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 0 15px rgba(106, 17, 203, 0.5);
+        }
+        
+        .player-stats {
+            flex: 1;
+        }
+        
+        .stat-bar {
+            height: 10px;
+            border-radius: 8px;
+            margin-bottom: 6px;
+            overflow: hidden;
+            position: relative;
+            background: rgba(255, 255, 255, 0.1);
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+        }
+        
+        .stat-fill {
+            height: 100%;
+            border-radius: 8px;
+            transition: width 0.5s cubic-bezier(0.215, 0.610, 0.355, 1.000);
+        }
+        
+        .hp-bar .stat-fill {
+            background: linear-gradient(90deg, #ff416c, #ff4b2b);
+        }
+        
+        .mana-bar .stat-fill {
+            background: linear-gradient(90deg, #4A00E0, #8E2DE2);
+        }
+        
+        .stat-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 0.6rem;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+        }
+        
+        .stat-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.7rem;
+            margin-bottom: 3px;
+            color: #c0c0e0;
+            font-weight: 600;
+        }
+        
+        /* Barra de XP integrada en el panel */
+        .xp-section {
+            margin-top: 5px;
+            padding-top: 5px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .xp-bar {
+            width: 100%;
+            height: 7px;
+            background: rgba(255, 255, 255, 0.12);
+            border-radius: 3px;
+            overflow: hidden;
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+            margin-top: 4px;
+        }
+        
+        .xp-progress {
+            height: 100%;
+            background: linear-gradient(90deg, #FFD700, #FFA500);
+            border-radius: 3px;
+            transition: width 0.7s cubic-bezier(0.215, 0.610, 0.355, 1.000);
+        }
+        
+        .xp-text {
+            font-size: 0.7rem;
+            color: #c0c0e0;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            margin-top: 3px;
+        }
         
         .location-indicator {
             position: absolute;
-            bottom: 80px;
-            right: 20px;
-            background: white;
-            padding: 10px 15px;
-            border-radius: 20px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            bottom: 70px;
+            right: 15px;
+            background: rgba(26, 26, 46, 0.9);
+            color: #fff;
+            padding: 8px 14px;
+            border-radius: 18px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
             z-index: 1000;
-            font-size: 0.9rem;
+            font-size: 0.8rem;
             display: none;
+            align-items: center;
+            gap: 6px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            animation: fadeIn 0.3s ease;
         }
         
         .loading-overlay {
@@ -30,7 +156,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(255, 255, 255, 0.8);
+            background: rgba(26, 26, 46, 0.95);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -42,8 +168,8 @@
         .spinner {
             width: 40px;
             height: 40px;
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #4a6fa5;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top: 3px solid #6a11cb;
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
@@ -53,162 +179,542 @@
             100% { transform: rotate(360deg); }
         }
         
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
         .notification {
             position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 12px 16px;
-            border-radius: 5px;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 18px;
+            border-radius: 10px;
             color: white;
             z-index: 4000;
             opacity: 0;
-            transform: translateX(100%);
-            transition: all 0.3s ease;
+            transition: all 0.4s cubic-bezier(0.215, 0.610, 0.355, 1.000);
             font-size: 0.9rem;
-            max-width: 300px;
+            max-width: 85%;
+            text-align: center;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
         
         .notification.show {
             opacity: 1;
-            transform: translateX(0);
+            top: 20px;
         }
         
-        .notification.success { background-color: #28a745; }
-        .notification.error { background-color: #dc3545; }
-        .notification.info { background-color: #17a2b8; }
+        .notification.success { 
+            background: rgba(40, 167, 69, 0.85);
+        }
+        .notification.error { 
+            background: rgba(220, 53, 69, 0.85);
+        }
+        .notification.info { 
+            background: rgba(23, 162, 184, 0.85);
+        }
         
         .offline-indicator {
             position: absolute;
-            top: 20px;
-            left: 20px;
-            background: white;
-            padding: 8px 12px;
-            border-radius: 20px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(220, 53, 69, 0.85);
+            color: white;
+            padding: 6px 14px;
+            border-radius: 18px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
             z-index: 1000;
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             display: none;
             align-items: center;
-            gap: 5px;
+            gap: 6px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            animation: fadeIn 0.3s ease;
         }
         
-        /* Nueva barra de controles en pie de página */
+        /* Barra de controles compacta y fija a pie de página */
         .controls-footer {
             position: fixed;
             bottom: 0;
             left: 0;
-            right: 0;
-            background: white;
-            padding: 10px 20px;
-            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            background: rgba(26, 26, 46, 0.95);
+            padding: 8px 0;
+            box-shadow: 0 -2px 15px rgba(0, 0, 0, 0.4);
             z-index: 1000;
             display: flex;
             justify-content: center;
             align-items: center;
             gap: 15px;
+            backdrop-filter: blur(12px);
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
         }
         
         .control-btn {
-            width: 50px;
-            height: 50px;
+            width: 42px;
+            height: 42px;
             border-radius: 50%;
-            background: white;
+            background: rgba(255, 255, 255, 0.12);
             border: none;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.1rem;
+            color: #e6e6e6;
+            transition: all 0.3s cubic-bezier(0.215, 0.610, 0.355, 1.000);
+        }
+        
+        .control-btn:hover {
+            background: rgba(106, 17, 203, 0.4);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 12px rgba(106, 17, 203, 0.4);
+        }
+        
+        .control-btn.active {
+            background: #6a11cb;
+            color: white;
+            box-shadow: 0 0 15px rgba(106, 17, 203, 0.6);
+            transform: scale(1.05);
+        }
+        
+        .zoom-controls {
+            display: flex;
+            gap: 8px;
+            margin: 0 5px;
+        }
+        
+        .direction-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(26, 26, 46, 0.9);
+            padding: 8px 12px;
+            border-radius: 18px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            font-size: 0.8rem;
+        }
+        
+        .compass {
+            width: 24px;
+            height: 24px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+        
+        .compass-arrow {
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-bottom: 10px solid #ff4b2b;
+            position: absolute;
+            transform-origin: 50% 70%;
+            transition: transform 0.3s ease;
+        }
+        
+        /* Mini menú */
+        .mini-menu {
+            position: absolute;
+            bottom: 70px;
+            right: 15px;
+            background: rgba(26, 26, 46, 0.95);
+            border-radius: 12px;
+            padding: 10px;
+            box-shadow: 0 6px 25px rgba(0, 0, 0, 0.4);
+            z-index: 1000;
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            transform-origin: bottom right;
+            transform: scale(0);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.215, 0.610, 0.355, 1.000);
+        }
+        
+        .mini-menu.open {
+            display: flex;
+            transform: scale(1);
+            opacity: 1;
+        }
+        
+        .mini-menu-btn {
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: #e6e6e6;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            transition: all 0.2s ease;
+            min-width: 150px;
+        }
+        
+        .mini-menu-btn:hover {
+            background: rgba(106, 17, 203, 0.35);
+            transform: translateX(3px);
+        }
+        
+        /* Botón de menú expandido */
+        .menu-toggle {
+            position: absolute;
+            bottom: 70px;
+            right: 15px;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            border: none;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
             cursor: pointer;
             display: flex;
             justify-content: center;
             align-items: center;
             font-size: 1.2rem;
-            color: #4a6fa5;
+            color: white;
+            z-index: 1001;
+            transition: all 0.3s cubic-bezier(0.215, 0.610, 0.355, 1.000);
+            backdrop-filter: blur(10px);
+        }
+        
+        .menu-toggle:hover {
+            transform: rotate(90deg) scale(1.05);
+            box-shadow: 0 6px 20px rgba(106, 17, 203, 0.5);
+        }
+        
+        .menu-toggle.open {
+            transform: rotate(90deg);
+            background: linear-gradient(135deg, #2575fc 0%, #6a11cb 100%);
+        }
+        
+        .menu-toggle.hidden {
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.5);
+        }
+        
+        /* Elementos de juego en el mapa */
+        .npc-marker {
+            filter: hue-rotate(200deg) drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+        }
+        
+        .quest-marker {
+            filter: hue-rotate(90deg) drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+        }
+        
+        .enemy-marker {
+            filter: hue-rotate(0deg) brightness(0.8) drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+        }
+        
+        .loot-marker {
+            filter: hue-rotate(270deg) drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+        }
+        
+        /* Marcador de usuario con dirección */
+        .user-marker {
+            transition: transform 0.5s ease;
+        }
+        
+        .user-direction {
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 12px solid #ff4b2b;
+            position: absolute;
+            top: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.3));
+        }
+        
+        /* Nuevos estilos para el log de eventos */
+        .event-log {
+            position: absolute;
+            bottom: 70px;
+            left: 10px;
+            background: rgba(26, 26, 46, 0.95);
+            color: #e6e6e6;
+            padding: 10px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+            z-index: 1000;
+            max-width: 300px;
+            max-height: 200px;
+            overflow-y: auto;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            display: none;
+            font-size: 0.8rem;
+        }
+        
+        .event-log.open {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .event-item {
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        
+        .event-item:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+        
+        .event-icon {
+            min-width: 16px;
+            color: #6a11cb;
+        }
+        
+        .event-item.combat .event-icon {
+            color: #ff4b2b;
+        }
+        
+        .event-item.loot .event-icon {
+            color: #FFD700;
+        }
+        
+        .event-item.level-up .event-icon {
+            color: #6a11cb;
+        }
+        
+        .event-content {
+            flex: 1;
+        }
+        
+        .event-time {
+            font-size: 0.7rem;
+            color: #888;
+            margin-top: 2px;
+        }
+        
+        .log-toggle {
+            position: absolute;
+            bottom: 70px;
+            left: 10px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(26, 26, 46, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1rem;
+            color: #e6e6e6;
+            z-index: 1001;
+            backdrop-filter: blur(10px);
             transition: all 0.3s ease;
         }
         
-        .control-btn:hover {
-            background: #f0f0f0;
+        .log-toggle:hover {
+            background: rgba(106, 17, 203, 0.4);
+            transform: translateY(-2px);
         }
         
-        .control-btn.active {
-            background: #4a6fa5;
-            color: white;
+        .log-toggle.hidden {
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.5);
         }
         
-        .zoom-controls {
-            display: flex;
-            gap: 10px;
-            margin: 0 15px;
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(106, 17, 203, 0.7); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(106, 17, 203, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(106, 17, 203, 0); }
         }
         
         @media (max-width: 768px) {
+            .player-panel {
+                min-width: 180px;
+                padding: 8px 10px;
+            }
+            
+            .player-avatar {
+                width: 38px;
+                height: 38px;
+                font-size: 1rem;
+            }
+            
             .controls-footer {
-                padding: 10px;
+                padding: 6px 0;
+                gap: 12px;
             }
             
             .control-btn {
-                width: 45px;
-                height: 45px;
-                font-size: 1.1rem;
+                width: 38px;
+                height: 38px;
+                font-size: 1rem;
             }
             
             .location-indicator {
-                bottom: 70px;
+                bottom: 60px;
+                right: 10px;
             }
-        }
-        
-        /* Indicador de caché */
-        .cache-indicator {
-            position: absolute;
-            top: 20px;
-            left: 160px;
-            background: white;
-            padding: 8px 12px;
-            border-radius: 20px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-            z-index: 1000;
-            font-size: 0.8rem;
-            display: none;
-            align-items: center;
-            gap: 5px;
-        }
-        
-        .performance-panel {
-            position: absolute;
-            top: 60px;
-            right: 20px;
-            background: white;
-            padding: 10px 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-            z-index: 1000;
-            font-size: 0.8rem;
-            display: none;
-            flex-direction: column;
-            gap: 5px;
+            
+            .mini-menu {
+                bottom: 60px;
+                right: 10px;
+            }
+            
+            .menu-toggle {
+                bottom: 60px;
+                right: 10px;
+                width: 40px;
+                height: 40px;
+                font-size: 1.1rem;
+            }
+            
+            .direction-indicator {
+                top: 8px;
+                right: 8px;
+                padding: 6px 10px;
+                font-size: 0.75rem;
+            }
+            
+            .event-log {
+                max-width: 250px;
+                max-height: 150px;
+                left: 8px;
+                bottom: 60px;
+            }
+            
+            .log-toggle {
+                bottom: 60px;
+                left: 8px;
+                width: 36px;
+                height: 36px;
+                font-size: 0.9rem;
+            }
         }
     </style>
 </head>
 <body>
     <div id="map"></div>
     
+    <!-- Panel de estado del jugador -->
+    <div class="player-panel">
+        <div class="player-header">
+            <div class="player-avatar">
+                <i class="fas fa-user"></i>
+            </div>
+            <div class="player-stats">
+                <div class="stat-label">
+                    <span>HP</span>
+                    <span id="hp-text">100/100</span>
+                </div>
+                <div class="stat-bar hp-bar">
+                    <div class="stat-fill" id="hp-bar" style="width: 100%;"></div>
+                    <div class="stat-text" id="hp-percent">100%</div>
+                </div>
+                
+                <div class="stat-label">
+                    <span>Mana</span>
+                    <span id="mana-text">50/50</span>
+                </div>
+                <div class="stat-bar mana-bar">
+                    <div class="stat-fill" id="mana-bar" style="width: 100%;"></div>
+                    <div class="stat-text" id="mana-percent">100%</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Barra de XP integrada en el panel -->
+        <div class="xp-section">
+            <div class="stat-label">
+                <span><i class="fas fa-star"></i> Nivel <span id="level">1</span></span>
+                <span id="xp-text">0/100</span>
+            </div>
+            <div class="xp-bar">
+                <div class="xp-progress" id="xp-bar" style="width: 0%;"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Indicador de dirección -->
+    <div class="direction-indicator">
+        <div class="compass">
+            <div class="compass-arrow" id="compass-arrow"></div>
+        </div>
+        <span id="direction-text">Norte</span>
+    </div>
+    
     <div class="location-indicator" id="location-indicator">
-        <i class="fas fa-map-marker-alt"></i> Ubicación cargada
+        <i class="fas fa-map-marker-alt"></i> Ubicación actualizada
     </div>
     
     <div class="offline-indicator" id="offline-indicator">
         <i class="fas fa-wifi-slash"></i> Modo offline
     </div>
     
-    <div class="cache-indicator" id="cache-indicator">
-        <i class="fas fa-database"></i> <span id="cache-size">0 MB</span>
+    <!-- Botón de menú expandido -->
+    <button class="menu-toggle" id="menu-toggle">
+        <i class="fas fa-bars"></i>
+    </button>
+    
+    <!-- Menú expandido -->
+    <div class="mini-menu" id="mini-menu">
+        <button class="mini-menu-btn" id="inventory-btn">
+            <i class="fas fa-backpack"></i> Inventario
+        </button>
+        <button class="mini-menu-btn" id="quests-btn">
+            <i class="fas fa-scroll"></i> Misiones
+        </button>
+        <button class="mini-menu-btn" id="skills-btn">
+            <i class="fas fa-fire"></i> Habilidades
+        </button>
+        <button class="mini-menu-btn" id="cache-btn">
+            <i class="fas fa-database"></i> Limpiar caché
+        </button>
     </div>
     
-    <div class="performance-panel" id="performance-panel">
-        <div>Tiles en memoria: <span id="tiles-count">0</span></div>
-        <div>Tiempo carga: <span id="load-time">0ms</span></div>
-        <div>Última actualización: <span id="last-update">-</span></div>
+    <!-- Nuevo log de eventos -->
+    <div class="event-log" id="event-log">
+        <div class="event-item">
+            <div class="event-icon"><i class="fas fa-info-circle"></i></div>
+            <div class="event-content">
+                <div>Bienvenido a tu aventura</div>
+                <div class="event-time">Ahora</div>
+            </div>
+        </div>
     </div>
     
-    <!-- Nueva barra de controles en pie de página -->
+    <button class="log-toggle" id="log-toggle">
+        <i class="fas fa-scroll"></i>
+    </button>
+    
+    <!-- Barra de controles en pie de página - más compacta -->
     <div class="controls-footer">
         <button id="tracking-btn" class="control-btn" title="Activar/Desactivar seguimiento">
             <i class="fas fa-crosshairs"></i>
@@ -226,35 +732,22 @@
         <button id="refresh-btn" class="control-btn" title="Actualizar ubicación">
             <i class="fas fa-sync-alt"></i>
         </button>
-        
-        <button id="cache-btn" class="control-btn" title="Gestión de caché">
-            <i class="fas fa-database"></i>
-        </button>
-        
-        <button id="performance-btn" class="control-btn" title="Información de rendimiento">
-            <i class="fas fa-tachometer-alt"></i>
-        </button>
     </div>
     
     <div class="loading-overlay" id="loading-overlay">
         <div class="spinner"></div>
-        <span id="loading-text">Obteniendo ubicación...</span>
+        <span id="loading-text">Cargando aventura...</span>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script>
-        // Configuración mejorada
+        // Configuración simplificada del juego
         const CONFIG = {
             DEFAULT_LOCATION: [40.4168, -3.7038], // Madrid como ubicación por defecto
             DEFAULT_ZOOM: 13,
             USER_ZOOM: 15,
             THROTTLE_DELAY: 2000, // 2 segundos entre actualizaciones
-            TILE_CACHE_PREFIX: 'tile_',
-            TILE_CACHE_EXPIRY: 7 * 24 * 60 * 60 * 1000, // 7 días en milisegundos
-            MAX_CACHE_SIZE_MB: 50, // Límite de 50MB para la caché
-            PREFETCH_RADIUS: 1, // Radio de precarga de tiles adyacentes
-            MEMORY_CACHE_LIMIT: 100, // Número máximo de tiles a mantener en memoria
-            USE_INDEXED_DB: true // Usar IndexedDB para almacenamiento persistente
+            GAME_DATA_KEY: 'rpgGameData'
         };
 
         // Variables globales
@@ -263,163 +756,96 @@
         let isTracking = false;
         let lastPositionUpdate = 0;
         let isOnline = navigator.onLine;
-        let tileCache = new Map(); // Caché en memoria para acceso rápido
-        let db = null; // Referencia a la base de datos IndexedDB
-        let performanceMetrics = {
-            tilesLoaded: 0,
-            tilesFromCache: 0,
-            loadTimes: [],
-            lastUpdate: Date.now()
+        let currentHeading = 0;
+        let eventLog = [];
+        const MAX_LOG_ENTRIES = 20;
+        
+        // Datos del jugador
+        let playerData = {
+            level: 1,
+            xp: 0,
+            xpToNextLevel: 100,
+            hp: 100,
+            maxHp: 100,
+            mana: 50,
+            maxMana: 50,
+            gold: 0,
+            inventory: [],
+            skills: [],
+            quests: []
         };
 
         // Cache de elementos DOM
         const domElements = {
+            playerPanel: document.querySelector('.player-panel'),
+            hpText: document.getElementById('hp-text'),
+            hpBar: document.getElementById('hp-bar'),
+            hpPercent: document.getElementById('hp-percent'),
+            manaText: document.getElementById('mana-text'),
+            manaBar: document.getElementById('mana-bar'),
+            manaPercent: document.getElementById('mana-percent'),
+            levelText: document.getElementById('level'),
+            xpBar: document.getElementById('xp-bar'),
+            xpText: document.getElementById('xp-text'),
             locationIndicator: document.getElementById('location-indicator'),
+            offlineIndicator: document.getElementById('offline-indicator'),
             loadingOverlay: document.getElementById('loading-overlay'),
             loadingText: document.getElementById('loading-text'),
             trackingBtn: document.getElementById('tracking-btn'),
             refreshBtn: document.getElementById('refresh-btn'),
             zoomInBtn: document.getElementById('zoom-in-btn'),
             zoomOutBtn: document.getElementById('zoom-out-btn'),
-            offlineIndicator: document.getElementById('offline-indicator'),
-            cacheIndicator: document.getElementById('cache-indicator'),
-            cacheSize: document.getElementById('cache-size'),
-            performancePanel: document.getElementById('performance-panel'),
-            performanceBtn: document.getElementById('performance-btn'),
+            inventoryBtn: document.getElementById('inventory-btn'),
+            questsBtn: document.getElementById('quests-btn'),
+            skillsBtn: document.getElementById('skills-btn'),
             cacheBtn: document.getElementById('cache-btn'),
-            tilesCount: document.getElementById('tiles-count'),
-            loadTime: document.getElementById('load-time'),
-            lastUpdate: document.getElementById('last-update')
+            menuToggle: document.getElementById('menu-toggle'),
+            miniMenu: document.getElementById('mini-menu'),
+            compassArrow: document.getElementById('compass-arrow'),
+            directionText: document.getElementById('direction-text'),
+            eventLog: document.getElementById('event-log'),
+            logToggle: document.getElementById('log-toggle')
         };
 
-        // Inicializar IndexedDB
-        function initIndexedDB() {
-            return new Promise((resolve, reject) => {
-                if (!CONFIG.USE_INDEXED_DB || !window.indexedDB) {
-                    resolve(null);
-                    return;
-                }
-
-                const request = indexedDB.open('MapTileCache', 1);
-                
-                request.onerror = () => {
-                    console.warn('IndexedDB no disponible, usando localStorage');
-                    resolve(null);
-                };
-                
-                request.onsuccess = (event) => {
-                    db = event.target.result;
-                    resolve(db);
-                    updateCacheSizeIndicator();
-                };
-                
-                request.onupgradeneeded = (event) => {
-                    const database = event.target.result;
-                    if (!database.objectStoreNames.contains('tiles')) {
-                        const store = database.createObjectStore('tiles', { keyPath: 'key' });
-                        store.createIndex('timestamp', 'timestamp', { unique: false });
-                    }
-                };
-            });
-        }
-
-        // Almacenar tile en IndexedDB
-        async function storeTileInIndexedDB(key, data) {
-            if (!db) return;
-            
-            return new Promise((resolve, reject) => {
-                const transaction = db.transaction(['tiles'], 'readwrite');
-                const store = transaction.objectStore('tiles');
-                
-                const item = {
-                    key: key,
-                    data: data,
-                    timestamp: Date.now()
-                };
-                
-                const request = store.put(item);
-                
-                request.onerror = () => reject(request.error);
-                request.onsuccess = () => resolve();
-            });
-        }
-
-        // Obtener tile de IndexedDB
-        async function getTileFromIndexedDB(key) {
-            if (!db) return null;
-            
-            return new Promise((resolve, reject) => {
-                const transaction = db.transaction(['tiles'], 'readonly');
-                const store = transaction.objectStore('tiles');
-                
-                const request = store.get(key);
-                
-                request.onerror = () => reject(request.error);
-                request.onsuccess = () => {
-                    if (request.result && !isTileExpired(request.result.timestamp)) {
-                        resolve(request.result.data);
-                    } else {
-                        resolve(null);
-                    }
-                };
-            });
-        }
-
-        // Calcular tamaño de la caché en IndexedDB
-        async function getIndexedDBSize() {
-            if (!db) return 0;
-            
-            return new Promise((resolve, reject) => {
-                const transaction = db.transaction(['tiles'], 'readonly');
-                const store = transaction.objectStore('tiles');
-                let size = 0;
-                
-                store.openCursor().onsuccess = (event) => {
-                    const cursor = event.target.result;
-                    if (cursor) {
-                        // Estimación aproximada del tamaño (los tiles son base64)
-                        size += cursor.value.data.length * 0.75; // Aproximación de base64 a bytes
-                        cursor.continue();
-                    } else {
-                        resolve(size / (1024 * 1024)); // Convertir a MB
-                    }
-                };
-            });
-        }
-
-        // Limpiar caché de IndexedDB
-        async function clearIndexedDBCache() {
-            if (!db) return;
-            
-            return new Promise((resolve, reject) => {
-                const transaction = db.transaction(['tiles'], 'readwrite');
-                const store = transaction.objectStore('tiles');
-                const request = store.clear();
-                
-                request.onerror = () => reject(request.error);
-                request.onsuccess = () => resolve();
-            });
-        }
-
-        // Actualizar indicador de tamaño de caché
-        async function updateCacheSizeIndicator() {
-            if (CONFIG.USE_INDEXED_DB && db) {
-                const size = await getIndexedDBSize();
-                domElements.cacheSize.textContent = size.toFixed(2) + ' MB';
-                domElements.cacheIndicator.style.display = 'flex';
-            } else {
-                // Calcular tamaño de localStorage para tiles
-                let size = 0;
-                for (let i = 0; i < localStorage.length; i++) {
-                    const key = localStorage.key(i);
-                    if (key && key.startsWith(CONFIG.TILE_CACHE_PREFIX)) {
-                        const item = localStorage.getItem(key);
-                        size += (item.length * 2) / (1024 * 1024); // Aproximación de tamaño en MB
-                    }
-                }
-                domElements.cacheSize.textContent = size.toFixed(2) + ' MB';
-                domElements.cacheIndicator.style.display = 'flex';
+        // Cargar datos del juego
+        function loadGameData() {
+            try {
+                const data = localStorage.getItem(CONFIG.GAME_DATA_KEY);
+                return data ? JSON.parse(data) : null;
+            } catch (error) {
+                console.error('Error cargando datos del juego:', error);
+                return null;
             }
+        }
+
+        // Guardar datos del juego
+        function saveGameData() {
+            try {
+                localStorage.setItem(CONFIG.GAME_DATA_KEY, JSON.stringify(playerData));
+            } catch (error) {
+                console.error('Error guardando datos del juego:', error);
+            }
+        }
+
+        // Actualizar interfaz de jugador
+        function updatePlayerUI() {
+            // Actualizar HP
+            const hpPercent = (playerData.hp / playerData.maxHp) * 100;
+            domElements.hpBar.style.width = `${hpPercent}%`;
+            domElements.hpText.textContent = `${playerData.hp}/${playerData.maxHp}`;
+            domElements.hpPercent.textContent = `${Math.round(hpPercent)}%`;
+            
+            // Actualizar Mana
+            const manaPercent = (playerData.mana / playerData.maxMana) * 100;
+            domElements.manaBar.style.width = `${manaPercent}%`;
+            domElements.manaText.textContent = `${playerData.mana}/${playerData.maxMana}`;
+            domElements.manaPercent.textContent = `${Math.round(manaPercent)}%`;
+            
+            // Actualizar nivel y XP
+            const xpPercent = (playerData.xp / playerData.xpToNextLevel) * 100;
+            domElements.xpBar.style.width = `${xpPercent}%`;
+            domElements.xpText.textContent = `${playerData.xp}/${playerData.xpToNextLevel}`;
+            domElements.levelText.textContent = playerData.level;
         }
 
         // Mostrar notificación
@@ -441,17 +867,20 @@
                 notification.classList.remove('show');
                 setTimeout(() => notification.remove(), 300);
             }, 3000);
+
+            // Registrar en el log
+            addToEventLog(message, type);
         }
 
         // Mostrar/ocultar carga
-        function toggleLoading(show, text = 'Obteniendo ubicación...') {
+        function toggleLoading(show, text = 'Cargando aventura...') {
             domElements.loadingText.textContent = text;
             domElements.loadingOverlay.style.display = show ? 'flex' : 'none';
         }
 
         // Mostrar indicador de ubicación
         function showLocationIndicator() {
-            domElements.locationIndicator.style.display = 'block';
+            domElements.locationIndicator.style.display = 'flex';
             setTimeout(() => domElements.locationIndicator.style.display = 'none', 3000);
         }
 
@@ -463,320 +892,35 @@
                 showNotification('Conexión restablecida', 'success');
             } else {
                 domElements.offlineIndicator.style.display = 'flex';
-                showNotification('Estás offline, mostrando datos en caché', 'info');
+                showNotification('Estás offline', 'info');
             }
         }
 
-        // Actualizar panel de rendimiento
-        function updatePerformancePanel() {
-            const avgLoadTime = performanceMetrics.loadTimes.length > 0 
-                ? performanceMetrics.loadTimes.reduce((a, b) => a + b, 0) / performanceMetrics.loadTimes.length 
-                : 0;
-                
-            domElements.tilesCount.textContent = `${performanceMetrics.tilesFromCache}/${performanceMetrics.tilesLoaded} (${Math.round((performanceMetrics.tilesFromCache / performanceMetrics.tilesLoaded) * 100)}% caché)`;
-            domElements.loadTime.textContent = `${Math.round(avgLoadTime)}ms`;
-            domElements.lastUpdate.textContent = new Date(performanceMetrics.lastUpdate).toLocaleTimeString();
-        }
-
-        // Precargar tiles adyacentes
-        function prefetchAdjacentTiles(centerCoords, zoomLevel) {
-            if (!isOnline) return;
+        // Actualizar dirección de la brújula
+        function updateCompass(heading) {
+            currentHeading = heading;
+            domElements.compassArrow.style.transform = `rotate(${heading}deg)`;
             
-            const radius = CONFIG.PREFETCH_RADIUS;
-            for (let dx = -radius; dx <= radius; dx++) {
-                for (let dy = -radius; dy <= radius; dy++) {
-                    if (dx === 0 && dy === 0) continue; // No precargar el tile central otra vez
-                    
-                    const tileCoords = {
-                        x: centerCoords.x + dx,
-                        y: centerCoords.y + dy,
-                        z: zoomLevel
-                    };
-                    
-                    const cacheKey = `${CONFIG.TILE_CACHE_PREFIX}${tileCoords.x}_${tileCoords.y}_${tileCoords.z}`;
-                    
-                    // Verificar si ya está en caché
-                    if (tileCache.has(cacheKey)) continue;
-                    
-                    // Precargar en segundo plano
-                    setTimeout(() => {
-                        const tileUrl = `https://${['a', 'b', 'c'][Math.abs(tileCoords.x + tileCoords.y) % 3]}.tile.openstreetmap.org/${tileCoords.z}/${tileCoords.x}/${tileCoords.y}.png`;
-                        
-                        fetch(tileUrl)
-                            .then(response => response.blob())
-                            .then(blob => {
-                                const reader = new FileReader();
-                                reader.onload = () => {
-                                    cacheTile(cacheKey, reader.result);
-                                };
-                                reader.readAsDataURL(blob);
-                            })
-                            .catch(() => {
-                                // Silenciar errores de precarga
-                            });
-                    }, 100);
-                }
-            }
+            // Actualizar texto de dirección
+            const directions = ['Norte', 'Noreste', 'Este', 'Sureste', 'Sur', 'Suroeste', 'Oeste', 'Noroeste'];
+            const index = Math.round(heading / 45) % 8;
+            domElements.directionText.textContent = directions[index];
         }
 
-        // Inicializar el mapa con caché para tiles
+        // Inicializar el mapa
         function initMap(center = CONFIG.DEFAULT_LOCATION, zoom = CONFIG.DEFAULT_ZOOM) {
-            // Crear capa de tiles con sistema de caché personalizado
-            const cachedTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-                maxZoom: 19,
-                detectRetina: true
-            });
-
-            // Sobrescribir el método createTile para implementar caché mejorada
-            cachedTileLayer.createTile = function(coords, done) {
-                const tile = document.createElement('img');
-                tile.width = this.options.tileSize;
-                tile.height = this.options.tileSize;
-                
-                const cacheKey = `${CONFIG.TILE_CACHE_PREFIX}${coords.x}_${coords.y}_${coords.z}`;
-                const startTime = performance.now();
-                
-                // Intentar obtener de caché en memoria primero
-                if (tileCache.has(cacheKey)) {
-                    tile.src = tileCache.get(cacheKey);
-                    performanceMetrics.tilesLoaded++;
-                    performanceMetrics.tilesFromCache++;
-                    performanceMetrics.loadTimes.push(performance.now() - startTime);
-                    performanceMetrics.lastUpdate = Date.now();
-                    updatePerformancePanel();
-                    done(null, tile);
-                    
-                    // Precargar tiles adyacentes
-                    prefetchAdjacentTiles(coords, coords.z);
-                    return tile;
-                }
-                
-                // Si no está en memoria, buscar en almacenamiento persistente
-                getTileFromPersistentStorage(cacheKey).then(cachedTile => {
-                    if (cachedTile && !isTileExpired(cachedTile.timestamp)) {
-                        // Almacenar en caché de memoria para acceso futuro
-                        tileCache.set(cacheKey, cachedTile.data);
-                        
-                        // Limitar el tamaño de la caché en memoria
-                        if (tileCache.size > CONFIG.MEMORY_CACHE_LIMIT) {
-                            const firstKey = tileCache.keys().next().value;
-                            tileCache.delete(firstKey);
-                        }
-                        
-                        tile.src = cachedTile.data;
-                        performanceMetrics.tilesLoaded++;
-                        performanceMetrics.tilesFromCache++;
-                        performanceMetrics.loadTimes.push(performance.now() - startTime);
-                        performanceMetrics.lastUpdate = Date.now();
-                        updatePerformancePanel();
-                        done(null, tile);
-                        
-                        // Precargar tiles adyacentes
-                        prefetchAdjacentTiles(coords, coords.z);
-                    } else {
-                        // Obtener de red y guardar en caché
-                        const tileUrl = this.getTileUrl(coords);
-                        
-                        // Cargar el tile con manejo de errores
-                        tile.onload = () => {
-                            // Convertir a base64 para almacenamiento
-                            const canvas = document.createElement('canvas');
-                            canvas.width = tile.width;
-                            canvas.height = tile.height;
-                            const ctx = canvas.getContext('2d');
-                            ctx.drawImage(tile, 0, 0);
-                            
-                            const dataUrl = canvas.toDataURL('image/png');
-                            cacheTile(cacheKey, dataUrl);
-                            
-                            performanceMetrics.tilesLoaded++;
-                            performanceMetrics.loadTimes.push(performance.now() - startTime);
-                            performanceMetrics.lastUpdate = Date.now();
-                            updatePerformancePanel();
-                            
-                            // Precargar tiles adyacentes
-                            prefetchAdjacentTiles(coords, coords.z);
-                        };
-                        
-                        tile.onerror = () => {
-                            // Si estamos offline y no hay tile en caché, mostrar tile de error
-                            if (!isOnline) {
-                                tile.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256"><rect width="100%" height="100%" fill="lightgray"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="14" fill="gray">Sin conexión</text></svg>';
-                                done(null, tile);
-                            } else {
-                                done(new Error('Error loading tile'), tile);
-                            }
-                        };
-                        
-                        tile.src = tileUrl;
-                        done(null, tile);
-                    }
-                }).catch(() => {
-                    // Fallback a carga directa si hay error con el almacenamiento
-                    tile.src = this.getTileUrl(coords);
-                    done(null, tile);
-                });
-                
-                return tile;
-            };
-
             map = L.map('map', {
                 center: center,
                 zoom: zoom,
-                layers: [cachedTileLayer],
-                zoomControl: false // Desactivamos el control de zoom por defecto
+                zoomControl: false
             });
 
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 19
+            }).addTo(map);
+
             return map;
-        }
-
-        // Obtener tile del almacenamiento persistente (IndexedDB o localStorage)
-        async function getTileFromPersistentStorage(key) {
-            if (CONFIG.USE_INDEXED_DB && db) {
-                try {
-                    const data = await getTileFromIndexedDB(key);
-                    return data ? { data, timestamp: Date.now() } : null;
-                } catch (error) {
-                    console.warn('Error accediendo a IndexedDB:', error);
-                    return null;
-                }
-            } else {
-                // Fallback a localStorage
-                try {
-                    const item = localStorage.getItem(key);
-                    if (!item) return null;
-                    
-                    const parsed = JSON.parse(item);
-                    return { data: parsed.data, timestamp: parsed.timestamp };
-                } catch (e) {
-                    console.warn('Error obteniendo tile de localStorage:', e);
-                    return null;
-                }
-            }
-        }
-
-        // Almacenar tile en caché
-        async function cacheTile(key, data) {
-            // Almacenar en caché de memoria
-            tileCache.set(key, data);
-            
-            // Limitar el tamaño de la caché en memoria
-            if (tileCache.size > CONFIG.MEMORY_CACHE_LIMIT) {
-                const firstKey = tileCache.keys().next().value;
-                tileCache.delete(firstKey);
-            }
-            
-            // Almacenar en almacenamiento persistente
-            if (CONFIG.USE_INDEXED_DB && db) {
-                try {
-                    await storeTileInIndexedDB(key, data);
-                    // Verificar y limpiar caché si excede el tamaño máximo
-                    const currentSize = await getIndexedDBSize();
-                    if (currentSize > CONFIG.MAX_CACHE_SIZE_MB) {
-                        await clearExpiredTiles();
-                    }
-                    updateCacheSizeIndicator();
-                } catch (error) {
-                    console.warn('Error almacenando en IndexedDB:', error);
-                }
-            } else {
-                // Fallback a localStorage
-                try {
-                    const item = {
-                        data: data,
-                        timestamp: Date.now()
-                    };
-                    localStorage.setItem(key, JSON.stringify(item));
-                    updateCacheSizeIndicator();
-                } catch (e) {
-                    console.warn('Error almacenando tile en caché:', e);
-                    // Limpiar caché si está llena
-                    if (e.name === 'QuotaExceededError') {
-                        clearExpiredTiles();
-                    }
-                }
-            }
-        }
-
-        // Verificar si un tile ha expirado
-        function isTileExpired(timestamp) {
-            return Date.now() - timestamp > CONFIG.TILE_CACHE_EXPIRY;
-        }
-
-        // Limpiar tiles expirados
-        async function clearExpiredTiles() {
-            if (CONFIG.USE_INDEXED_DB && db) {
-                try {
-                    const transaction = db.transaction(['tiles'], 'readwrite');
-                    const store = transaction.objectStore('tiles');
-                    const index = store.index('timestamp');
-                    const range = IDBKeyRange.upperBound(Date.now() - CONFIG.TILE_CACHE_EXPIRY);
-                    
-                    index.openCursor(range).onsuccess = (event) => {
-                        const cursor = event.target.result;
-                        if (cursor) {
-                            store.delete(cursor.primaryKey);
-                            cursor.continue();
-                        }
-                    };
-                    
-                    await transaction.complete;
-                    updateCacheSizeIndicator();
-                } catch (error) {
-                    console.warn('Error limpiando IndexedDB:', error);
-                }
-            } else {
-                // Limpiar localStorage
-                try {
-                    const now = Date.now();
-                    for (let i = 0; i < localStorage.length; i++) {
-                        const key = localStorage.key(i);
-                        if (key && key.startsWith(CONFIG.TILE_CACHE_PREFIX)) {
-                            const item = localStorage.getItem(key);
-                            if (item) {
-                                const parsed = JSON.parse(item);
-                                if (now - parsed.timestamp > CONFIG.TILE_CACHE_EXPIRY) {
-                                    localStorage.removeItem(key);
-                                }
-                            }
-                        }
-                    }
-                    updateCacheSizeIndicator();
-                } catch (e) {
-                    console.warn('Error limpiando tiles expirados:', e);
-                }
-            }
-        }
-
-        // Limpiar toda la caché
-        async function clearAllCache() {
-            tileCache.clear();
-            
-            if (CONFIG.USE_INDEXED_DB && db) {
-                try {
-                    await clearIndexedDBCache();
-                    updateCacheSizeIndicator();
-                    showNotification('Caché limpiada correctamente', 'success');
-                } catch (error) {
-                    console.warn('Error limpiando IndexedDB:', error);
-                    showNotification('Error al limpiar la caché', 'error');
-                }
-            } else {
-                try {
-                    for (let i = localStorage.length - 1; i >= 0; i--) {
-                        const key = localStorage.key(i);
-                        if (key && key.startsWith(CONFIG.TILE_CACHE_PREFIX)) {
-                            localStorage.removeItem(key);
-                        }
-                    }
-                    updateCacheSizeIndicator();
-                    showNotification('Caché limpiada correctamente', 'success');
-                } catch (e) {
-                    console.warn('Error limpiando caché:', e);
-                    showNotification('Error al limpiar la caché', 'error');
-                }
-            }
         }
 
         // Actualizar la ubicación del usuario en el mapa con throttling
@@ -792,16 +936,32 @@
             
             const userLocation = [position.coords.latitude, position.coords.longitude];
             
+            // Actualizar dirección si está disponible
+            if (position.coords.heading !== null && !isNaN(position.coords.heading)) {
+                updateCompass(position.coords.heading);
+            }
+            
             if (userMarker) {
                 userMarker.setLatLng(userLocation);
+                // Rotar el marcador según la dirección
+                if (position.coords.heading !== null && !isNaN(position.coords.heading)) {
+                    userMarker.setRotationAngle(position.coords.heading);
+                }
             } else {
-                // Añadir marcador de ubicación del usuario
+                // Añadir marcador de ubicación del usuario con indicador de dirección
                 userMarker = L.marker(userLocation, {
                     icon: L.divIcon({
                         className: 'user-marker',
-                        html: '<div style="background-color:#4a6fa5; width:20px; height:20px; border-radius:50%; border:3px solid white; box-shadow:0 0 10px rgba(0,0,0,0.3);"></div>',
-                        iconSize: [20, 20]
-                    })
+                        html: `
+                            <div style="position:relative">
+                                <div style="background-color:#6a11cb; width:22px; height:22px; border-radius:50%; border:2px solid white; box-shadow:0 0 15px rgba(106,17,203,0.5);"></div>
+                                <div class="user-direction"></div>
+                            </div>
+                        `,
+                        iconSize: [22, 22],
+                        iconAnchor: [11, 11]
+                    }),
+                    rotationAngle: position.coords.heading || 0
                 }).addTo(map);
                 
                 // Añadir popup al marcador
@@ -809,11 +969,194 @@
             }
             
             if (isTracking) {
-                map.setView(userLocation, map.getZoom());
+                map.setView(userLocation, CONFIG.USER_ZOOM);
             }
             
             showLocationIndicator();
-            showNotification('Ubicación actualizada', 'success');
+            
+            // Simular eventos de juego basados en movimiento
+            simulateGameEvents(userLocation);
+        }
+
+        // Simular eventos de juego basados en movimiento
+        function simulateGameEvents(location) {
+            // Simular ganancia de XP por moverse
+            const xpGained = Math.floor(Math.random() * 3) + 1; // 1-3 XP por movimiento
+            addXP(xpGained);
+            
+            // Ocasionalmente encontrar un enemigo (5% de probabilidad)
+            if (Math.random() < 0.05) {
+                showNotification('¡Has encontrado un enemigo!', 'error');
+                
+                // Simular daño de combate
+                setTimeout(() => {
+                    const damage = Math.floor(Math.random() * 10) + 5;
+                    takeDamage(damage);
+                    showNotification(`Recibiste ${damage} puntos de daño`, 'error');
+                }, 1500);
+            }
+            
+            // Ocasionalmente encontrar un objeto (3% de probabilidad)
+            if (Math.random() < 0.03) {
+                const items = ['Poción de vida', 'Poción de maná', 'Elixir mágico', 'Pergamino antiguo'];
+                const foundItem = items[Math.floor(Math.random() * items.length)];
+                
+                showNotification(`¡Encontraste ${foundItem}!`, 'success');
+                addToEventLog(`Encontraste ${foundItem}`, 'loot');
+                
+                // Añadir a inventario
+                playerData.inventory.push(foundItem);
+                saveGameData();
+            }
+        }
+
+        // Añadir experiencia
+        function addXP(amount) {
+            playerData.xp += amount;
+            
+            // Registrar en el log
+            addToEventLog(`Ganaste ${amount} puntos de experiencia`, 'info');
+            
+            // Comprobar si sube de nivel
+            while (playerData.xp >= playerData.xpToNextLevel) {
+                playerData.xp -= playerData.xpToNextLevel;
+                playerData.level++;
+                playerData.xpToNextLevel = Math.floor(playerData.xpToNextLevel * 1.5);
+                
+                // Mejorar stats al subir de nivel
+                playerData.maxHp += 10;
+                playerData.hp = playerData.maxHp;
+                playerData.maxMana += 5;
+                playerData.mana = playerData.maxMana;
+                
+                showNotification(`¡Felicidades! Has subido al nivel ${playerData.level}`, 'success');
+                addToEventLog(`Subiste al nivel ${playerData.level}`, 'level-up');
+            }
+            
+            updatePlayerUI();
+            saveGameData();
+        }
+
+        // Recibir daño
+        function takeDamage(amount) {
+            playerData.hp = Math.max(0, playerData.hp - amount);
+            
+            // Registrar en el log
+            addToEventLog(`Recibiste ${amount} puntos de daño`, 'combat');
+            
+            // Comprobar si el jugador ha muerto
+            if (playerData.hp <= 0) {
+                showNotification('¡Has sido derrotado!', 'error');
+                
+                // Resucitar con HP completo después de un tiempo
+                setTimeout(() => {
+                    playerData.hp = playerData.maxHp;
+                    updatePlayerUI();
+                    showNotification('Has sido revitalizado', 'info');
+                }, 3000);
+            }
+            
+            updatePlayerUI();
+            saveGameData();
+        }
+
+        // Usar habilidad (consume maná)
+        function useSkill(cost) {
+            if (playerData.mana >= cost) {
+                playerData.mana -= cost;
+                updatePlayerUI();
+                saveGameData();
+                return true;
+            }
+            return false;
+        }
+
+        // Función para añadir eventos al log
+        function addToEventLog(message, type = 'info') {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString();
+            
+            // Determinar el icono según el tipo
+            let icon = 'info-circle';
+            if (type === 'combat') icon = 'fist-raised';
+            if (type === 'loot') icon = 'gift';
+            if (type === 'level-up') icon = 'level-up-alt';
+            if (type === 'error') icon = 'exclamation-triangle';
+            
+            // Añadir al array de eventos
+            eventLog.unshift({
+                message,
+                time: timeString,
+                type,
+                icon
+            });
+            
+            // Limitar el número de entradas
+            if (eventLog.length > MAX_LOG_ENTRIES) {
+                eventLog.pop();
+            }
+            
+            // Actualizar la visualización
+            updateEventLogDisplay();
+            
+            // Guardar en localStorage
+            saveEventLog();
+        }
+
+        // Función para actualizar la visualización del log
+        function updateEventLogDisplay() {
+            if (!domElements.eventLog) return;
+            
+            domElements.eventLog.innerHTML = '';
+            
+            eventLog.forEach(event => {
+                const eventElement = document.createElement('div');
+                eventElement.className = `event-item ${event.type}`;
+                eventElement.innerHTML = `
+                    <div class="event-icon"><i class="fas fa-${event.icon}"></i></div>
+                    <div class="event-content">
+                        <div>${event.message}</div>
+                        <div class="event-time">${event.time}</div>
+                    </div>
+                `;
+                domElements.eventLog.appendChild(eventElement);
+            });
+        }
+
+        // Función para guardar el log
+        function saveEventLog() {
+            try {
+                localStorage.setItem('rpgEventLog', JSON.stringify(eventLog));
+            } catch (error) {
+                console.error('Error guardando el log de eventos:', error);
+            }
+        }
+
+        // Función para cargar el log
+        function loadEventLog() {
+            try {
+                const savedLog = localStorage.getItem('rpgEventLog');
+                if (savedLog) {
+                    eventLog = JSON.parse(savedLog);
+                    updateEventLogDisplay();
+                }
+            } catch (error) {
+                console.error('Error cargando el log de eventos:', error);
+            }
+        }
+
+        // Función para alternar la visibilidad del log
+        function toggleEventLog() {
+            const isOpening = !domElements.eventLog.classList.contains('open');
+            domElements.eventLog.classList.toggle('open');
+            
+            if (isOpening) {
+                // Si estamos abriendo el log, ocultamos el botón
+                domElements.logToggle.classList.add('hidden');
+            } else {
+                // Si estamos cerrando el log, mostramos el botón
+                domElements.logToggle.classList.remove('hidden');
+            }
         }
 
         // Manejar errores de geolocalización
@@ -822,19 +1165,38 @@
             let errorMessage;
             switch(error.code) {
                 case error.PERMISSION_DENIED:
-                    errorMessage = 'Permiso de ubicación denegado';
+                    errorMessage = 'Permiso de ubicación denegado. Por favor, habilita la geolocalización en tu navegador.';
                     break;
                 case error.POSITION_UNAVAILABLE:
-                    errorMessage = 'Información de ubicación no disponible';
+                    errorMessage = 'Información de ubicación no disponible. Comprueba tu conexión GPS.';
                     break;
                 case error.TIMEOUT:
-                    errorMessage = 'Tiempo de espera agotado';
+                    errorMessage = 'Tiempo de espera agotado al obtener la ubicación.';
                     break;
                 default:
-                    errorMessage = 'Error desconocido al obtener la ubicación';
+                    errorMessage = 'Error desconocido al obtener la ubicación.';
             }
             
             showNotification(errorMessage, 'error');
+            
+            // Añadir marcador en ubicación por defecto si no existe
+            if (!userMarker) {
+                userMarker = L.marker(CONFIG.DEFAULT_LOCATION, {
+                    icon: L.divIcon({
+                        className: 'user-marker',
+                        html: `
+                            <div style="position:relative">
+                                <div style="background-color:#6a11cb; width:22px; height:22px; border-radius:50%; border:2px solid white; box-shadow:0 0 15px rgba(106,17,203,0.5);"></div>
+                                <div class="user-direction"></div>
+                            </div>
+                        `,
+                        iconSize: [22, 22],
+                        iconAnchor: [11, 11]
+                    })
+                }).addTo(map);
+                userMarker.bindPopup('<b>Ubicación por defecto (GPS no disponible)</b>').openPopup();
+            }
+            
             return errorMessage;
         }
 
@@ -843,17 +1205,17 @@
             return new Promise((resolve, reject) => {
                 if (!navigator.geolocation) {
                     const error = new Error('Geolocalización no soportada');
-                    showNotification('Geolocalización no soportada', 'error');
+                    showNotification('Geolocalización no soportada en este navegador', 'error');
                     reject(error);
                     return;
                 }
 
-                toggleLoading(true);
+                toggleLoading(true, 'Obteniendo ubicación...');
                 
                 // Opciones de geolocalización
                 const geoOptions = {
                     enableHighAccuracy: true,
-                    timeout: 10000,
+                    timeout: 15000, // Aumentado a 15 segundos
                     maximumAge: 60000
                 };
                 
@@ -865,7 +1227,8 @@
                     },
                     error => {
                         const errorMsg = handleGeolocationError(error);
-                        reject(new Error(errorMsg));
+                        // Resolver con ubicación por defecto en caso de error
+                        resolve(CONFIG.DEFAULT_LOCATION);
                     },
                     geoOptions
                 );
@@ -874,11 +1237,14 @@
 
         // Iniciar seguimiento de ubicación
         function startTracking() {
-            if (!navigator.geolocation) return;
+            if (!navigator.geolocation) {
+                showNotification('Geolocalización no soportada en este navegador', 'error');
+                return;
+            }
             
             const geoOptions = {
                 enableHighAccuracy: true,
-                timeout: 10000,
+                timeout: 15000, // Aumentado a 15 segundos
                 maximumAge: 60000
             };
             
@@ -932,10 +1298,94 @@
             }
         }
 
+        // Mostrar inventario
+        function showInventory() {
+            const itemCount = playerData.inventory.length;
+            showNotification(`Tienes ${itemCount} objetos en tu inventario`, 'info');
+            toggleMenu();
+        }
+
+        // Mostrar misiones
+        function showQuests() {
+            showNotification('No tienes misiones activas en este momento', 'info');
+            toggleMenu();
+        }
+
+        // Usar habilidad
+        function useSkillAction() {
+            if (useSkill(10)) {
+                showNotification('¡Habilidad utilizada! (-10 de maná)', 'success');
+            } else {
+                showNotification('No tienes suficiente maná', 'error');
+            }
+            toggleMenu();
+        }
+
+        // Limpiar caché
+        function clearCache() {
+            localStorage.removeItem(CONFIG.GAME_DATA_KEY);
+            localStorage.removeItem('rpgEventLog');
+            showNotification('Caché limpiada correctamente', 'success');
+            toggleMenu();
+            
+            // Recargar la página para reiniciar el juego
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        }
+
+        // Alternar menú
+        function toggleMenu() {
+            const isOpen = domElements.miniMenu.classList.contains('open');
+            if (isOpen) {
+                domElements.miniMenu.classList.remove('open');
+                domElements.menuToggle.classList.remove('open');
+                // Mostrar el botón de menú después de cerrar
+                setTimeout(() => {
+                    domElements.miniMenu.style.display = 'none';
+                    domElements.menuToggle.classList.remove('hidden');
+                }, 300);
+            } else {
+                // Ocultar el botón de menú al abrir
+                domElements.menuToggle.classList.add('hidden');
+                domElements.miniMenu.style.display = 'flex';
+                setTimeout(() => {
+                    domElements.miniMenu.classList.add('open');
+                    domElements.menuToggle.classList.add('open');
+                }, 10);
+            }
+        }
+
         // Inicializar la aplicación
         async function initApplication() {
-            // Inicializar IndexedDB primero
-            await initIndexedDB();
+            // Cargar datos del juego
+            const savedData = loadGameData();
+            if (savedData) {
+                playerData = savedData;
+                showNotification('Partida cargada correctamente', 'success');
+            } else {
+                // Datos por defecto para nuevo jugador
+                playerData = {
+                    level: 1,
+                    xp: 0,
+                    xpToNextLevel: 100,
+                    hp: 100,
+                    maxHp: 100,
+                    mana: 50,
+                    maxMana: 50,
+                    gold: 0,
+                    inventory: [],
+                    skills: [],
+                    quests: []
+                };
+                showNotification('¡Bienvenido a tu nueva aventura!', 'info');
+            }
+            
+            // Cargar el log de eventos
+            loadEventLog();
+            
+            // Actualizar UI del jugador
+            updatePlayerUI();
             
             // Inicializar el mapa
             initMap();
@@ -949,12 +1399,25 @@
             });
             domElements.zoomInBtn.addEventListener('click', zoomIn);
             domElements.zoomOutBtn.addEventListener('click', zoomOut);
-            domElements.cacheBtn.addEventListener('click', clearAllCache);
-            domElements.performanceBtn.addEventListener('click', () => {
-                domElements.performancePanel.style.display = 
-                    domElements.performancePanel.style.display === 'none' || 
-                    domElements.performancePanel.style.display === '' 
-                    ? 'flex' : 'none';
+            domElements.inventoryBtn.addEventListener('click', showInventory);
+            domElements.questsBtn.addEventListener('click', showQuests);
+            domElements.skillsBtn.addEventListener('click', useSkillAction);
+            domElements.cacheBtn.addEventListener('click', clearCache);
+            domElements.menuToggle.addEventListener('click', toggleMenu);
+            domElements.logToggle.addEventListener('click', toggleEventLog);
+            
+            // Cerrar menú al hacer clic fuera de él
+            document.addEventListener('click', (e) => {
+                if (domElements.miniMenu.classList.contains('open') && 
+                    !e.target.closest('.mini-menu') && 
+                    !e.target.closest('.menu-toggle')) {
+                    toggleMenu();
+                }
+                if (domElements.eventLog.classList.contains('open') && 
+                    !e.target.closest('.event-log') && 
+                    !e.target.closest('.log-toggle')) {
+                    toggleEventLog();
+                }
             });
             
             // Configurar detección de conexión
@@ -963,24 +1426,17 @@
             updateOnlineStatus();
             
             // Intentar obtener la ubicación del usuario
-            locateUser().catch(error => {
+            try {
+                await locateUser();
+            } catch (error) {
                 console.error('Error obteniendo ubicación:', error);
                 showNotification('Usando ubicación por defecto', 'info');
-            });
-            
-            // Limpiar tiles expirados al iniciar
-            clearExpiredTiles();
-            
-            // Registrar Service Worker si está disponible
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('sw.js')
-                    .then(registration => {
-                        console.log('SW registrado:', registration);
-                    })
-                    .catch(error => {
-                        console.log('Error registrando SW:', error);
-                    });
+            } finally {
+                toggleLoading(false);
             }
+            
+            // Guardar periódicamente los datos del juego
+            setInterval(saveGameData, 30000); // Cada 30 segundos
         }
 
         // Limpiar recursos al cerrar
@@ -990,6 +1446,10 @@
                 map.remove();
                 map = null;
             }
+            
+            // Guardar datos del juego antes de salir
+            saveGameData();
+            saveEventLog();
             
             // Eliminar event listeners
             window.removeEventListener('online', updateOnlineStatus);
