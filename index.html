@@ -3,68 +3,1005 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SHUMZU - Secure QR Transfer</title>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/testSHUMZU/styles.css">
+    <title>Mapa con Geolocalización Mejorado - Enterprise</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: #f5f7fa; color: #333; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+        #map { flex: 1; width: 100%; }
+        
+        .location-indicator {
+            position: absolute;
+            bottom: 80px;
+            right: 20px;
+            background: white;
+            padding: 10px 15px;
+            border-radius: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            font-size: 0.9rem;
+            display: none;
+        }
+        
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 3000;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4a6fa5;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 16px;
+            border-radius: 5px;
+            color: white;
+            z-index: 4000;
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+            max-width: 300px;
+        }
+        
+        .notification.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        
+        .notification.success { background-color: #28a745; }
+        .notification.error { background-color: #dc3545; }
+        .notification.info { background-color: #17a2b8; }
+        
+        .offline-indicator {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            font-size: 0.8rem;
+            display: none;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        /* Nueva barra de controles en pie de página */
+        .controls-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            padding: 10px 20px;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .control-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: white;
+            border: none;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2rem;
+            color: #4a6fa5;
+            transition: all 0.3s ease;
+        }
+        
+        .control-btn:hover {
+            background: #f0f0f0;
+        }
+        
+        .control-btn.active {
+            background: #4a6fa5;
+            color: white;
+        }
+        
+        .zoom-controls {
+            display: flex;
+            gap: 10px;
+            margin: 0 15px;
+        }
+        
+        @media (max-width: 768px) {
+            .controls-footer {
+                padding: 10px;
+            }
+            
+            .control-btn {
+                width: 45px;
+                height: 45px;
+                font-size: 1.1rem;
+            }
+            
+            .location-indicator {
+                bottom: 70px;
+            }
+        }
+        
+        /* Indicador de caché */
+        .cache-indicator {
+            position: absolute;
+            top: 20px;
+            left: 160px;
+            background: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            font-size: 0.8rem;
+            display: none;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .performance-panel {
+            position: absolute;
+            top: 60px;
+            right: 20px;
+            background: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            font-size: 0.8rem;
+            display: none;
+            flex-direction: column;
+            gap: 5px;
+        }
+    </style>
 </head>
 <body>
-    <header class="logo-container">
-        <img id="logo" src="/testSHUMZU/rsc/logo_SHUMZU.png" alt="SHUMZU Logo">
-    </header>
-
-    <main>
-        <h2>Secure data solution combining compression, encryption, and QR codes for efficient transmission</h2>
-
-        <div class="camera-container" id="cameraContainer">
-            <video id="video" autoplay playsinline></video>
-            <canvas id="overlayCanvas" class="overlay-canvas"></canvas>
-            <div id="scanArea" class="scan-area"></div>
-            <div class="inactive-overlay" id="inactiveOverlay">
-                <svg class="fingerprint" viewBox="0 0 100 100">
-                    <path d="M50 10 Q60 20 50 30 Q40 20 50 10" stroke="var(--neon-cyan)" stroke-width="2" fill="none"/>
-                    <path d="M30 20 Q40 30 50 40 Q60 30 70 20" stroke="var(--neon-cyan)" stroke-width="2" fill="none"/>
-                    <path d="M20 30 Q30 40 40 50 Q50 40 60 30" stroke="var(--neon-cyan)" stroke-width="2" fill="none"/>
-                    <path d="M10 40 Q20 50 30 60 Q40 50 50 40" stroke="var(--neon-cyan)" stroke-width="2" fill="none"/>
-                    <path d="M60 40 Q70 50 80 60 Q90 50 90 40" stroke="var(--neon-cyan)" stroke-width="2" fill="none"/>
-                </svg>
-                <div class="scanning-lines">
-                    <div class="line"></div>
-                    <div class="line"></div>
-                    <div class="line"></div>
-                </div>
-            </div>
+    <div id="map"></div>
+    
+    <div class="location-indicator" id="location-indicator">
+        <i class="fas fa-map-marker-alt"></i> Ubicación cargada
+    </div>
+    
+    <div class="offline-indicator" id="offline-indicator">
+        <i class="fas fa-wifi-slash"></i> Modo offline
+    </div>
+    
+    <div class="cache-indicator" id="cache-indicator">
+        <i class="fas fa-database"></i> <span id="cache-size">0 MB</span>
+    </div>
+    
+    <div class="performance-panel" id="performance-panel">
+        <div>Tiles en memoria: <span id="tiles-count">0</span></div>
+        <div>Tiempo carga: <span id="load-time">0ms</span></div>
+        <div>Última actualización: <span id="last-update">-</span></div>
+    </div>
+    
+    <!-- Nueva barra de controles en pie de página -->
+    <div class="controls-footer">
+        <button id="tracking-btn" class="control-btn" title="Activar/Desactivar seguimiento">
+            <i class="fas fa-crosshairs"></i>
+        </button>
+        
+        <div class="zoom-controls">
+            <button id="zoom-out-btn" class="control-btn" title="Alejar">
+                <i class="fas fa-minus"></i>
+            </button>
+            <button id="zoom-in-btn" class="control-btn" title="Acercar">
+                <i class="fas fa-plus"></i>
+            </button>
         </div>
+        
+        <button id="refresh-btn" class="control-btn" title="Actualizar ubicación">
+            <i class="fas fa-sync-alt"></i>
+        </button>
+        
+        <button id="cache-btn" class="control-btn" title="Gestión de caché">
+            <i class="fas fa-database"></i>
+        </button>
+        
+        <button id="performance-btn" class="control-btn" title="Información de rendimiento">
+            <i class="fas fa-tachometer-alt"></i>
+        </button>
+    </div>
+    
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="spinner"></div>
+        <span id="loading-text">Obteniendo ubicación...</span>
+    </div>
 
-        <div id="progressContainer" class="progress-container">
-            <p id="progressText">Escaneando QR: 0 detectados</p>
-            <div class="progress-bar">
-                <div id="progressBar" class="progress-fill"></div>
-            </div>
-        </div>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+        // Configuración mejorada
+        const CONFIG = {
+            DEFAULT_LOCATION: [40.4168, -3.7038], // Madrid como ubicación por defecto
+            DEFAULT_ZOOM: 13,
+            USER_ZOOM: 15,
+            THROTTLE_DELAY: 2000, // 2 segundos entre actualizaciones
+            TILE_CACHE_PREFIX: 'tile_',
+            TILE_CACHE_EXPIRY: 7 * 24 * 60 * 60 * 1000, // 7 días en milisegundos
+            MAX_CACHE_SIZE_MB: 50, // Límite de 50MB para la caché
+            PREFETCH_RADIUS: 1, // Radio de precarga de tiles adyacentes
+            MEMORY_CACHE_LIMIT: 100, // Número máximo de tiles a mantener en memoria
+            USE_INDEXED_DB: true // Usar IndexedDB para almacenamiento persistente
+        };
 
-        <button id="reconstructButton" class="shumzu-button">SHUMZU</button>
-    </main>
+        // Variables globales
+        let map, userMarker;
+        let geolocationWatchId = null;
+        let isTracking = false;
+        let lastPositionUpdate = 0;
+        let isOnline = navigator.onLine;
+        let tileCache = new Map(); // Caché en memoria para acceso rápido
+        let db = null; // Referencia a la base de datos IndexedDB
+        let performanceMetrics = {
+            tilesLoaded: 0,
+            tilesFromCache: 0,
+            loadTimes: [],
+            lastUpdate: Date.now()
+        };
 
-    <footer class="social-container">
-        <a href="https://t.me/SHUMZUbot" target="_blank" class="social-icon" aria-label="Telegram">
-            <svg viewBox="0 0 24 24" fill="var(--neon-cyan)">
-                <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.14-.26.258-.534.258l.198-2.76 5.518-4.986c.22-.198-.048-.308-.346-.11l-6.816 4.29-2.96-.924c-.64-.203-.658-.64.135-.954l11.566-4.458c.538-.196 1.006.128.832.941z"/>
-            </svg>
-        </a>
-        <a href="https://github.com/mpetovick/SHUMZU" target="_blank" class="social-icon" aria-label="GitHub">
-            <svg viewBox="0 0 24 24" fill="var(--neon-cyan)">
-                <path d="M12 0C5.373 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.6.113.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
-            </svg>
-        </a>
-    </footer>
+        // Cache de elementos DOM
+        const domElements = {
+            locationIndicator: document.getElementById('location-indicator'),
+            loadingOverlay: document.getElementById('loading-overlay'),
+            loadingText: document.getElementById('loading-text'),
+            trackingBtn: document.getElementById('tracking-btn'),
+            refreshBtn: document.getElementById('refresh-btn'),
+            zoomInBtn: document.getElementById('zoom-in-btn'),
+            zoomOutBtn: document.getElementById('zoom-out-btn'),
+            offlineIndicator: document.getElementById('offline-indicator'),
+            cacheIndicator: document.getElementById('cache-indicator'),
+            cacheSize: document.getElementById('cache-size'),
+            performancePanel: document.getElementById('performance-panel'),
+            performanceBtn: document.getElementById('performance-btn'),
+            cacheBtn: document.getElementById('cache-btn'),
+            tilesCount: document.getElementById('tiles-count'),
+            loadTime: document.getElementById('load-time'),
+            lastUpdate: document.getElementById('last-update')
+        };
 
-    <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.js"></script>
-    <script src="https://unpkg.com/argon2-browser@1.18.0/dist/argon2.js"></script>
-    <script src="https://unpkg.com/js-sha3@0.8.0/build/sha3.min.js"></script>
-    <script src="https://unpkg.com/zstd-js@0.2.1/dist/zstd.min.js"></script>
-    <script src="https://unpkg.com/brotli-decompress-js@1.0.0/brotli-decompress.min.js"></script>
-    <script src="/testSHUMZU/script.js"></script>
+        // Inicializar IndexedDB
+        function initIndexedDB() {
+            return new Promise((resolve, reject) => {
+                if (!CONFIG.USE_INDEXED_DB || !window.indexedDB) {
+                    resolve(null);
+                    return;
+                }
+
+                const request = indexedDB.open('MapTileCache', 1);
+                
+                request.onerror = () => {
+                    console.warn('IndexedDB no disponible, usando localStorage');
+                    resolve(null);
+                };
+                
+                request.onsuccess = (event) => {
+                    db = event.target.result;
+                    resolve(db);
+                    updateCacheSizeIndicator();
+                };
+                
+                request.onupgradeneeded = (event) => {
+                    const database = event.target.result;
+                    if (!database.objectStoreNames.contains('tiles')) {
+                        const store = database.createObjectStore('tiles', { keyPath: 'key' });
+                        store.createIndex('timestamp', 'timestamp', { unique: false });
+                    }
+                };
+            });
+        }
+
+        // Almacenar tile en IndexedDB
+        async function storeTileInIndexedDB(key, data) {
+            if (!db) return;
+            
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction(['tiles'], 'readwrite');
+                const store = transaction.objectStore('tiles');
+                
+                const item = {
+                    key: key,
+                    data: data,
+                    timestamp: Date.now()
+                };
+                
+                const request = store.put(item);
+                
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => resolve();
+            });
+        }
+
+        // Obtener tile de IndexedDB
+        async function getTileFromIndexedDB(key) {
+            if (!db) return null;
+            
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction(['tiles'], 'readonly');
+                const store = transaction.objectStore('tiles');
+                
+                const request = store.get(key);
+                
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => {
+                    if (request.result && !isTileExpired(request.result.timestamp)) {
+                        resolve(request.result.data);
+                    } else {
+                        resolve(null);
+                    }
+                };
+            });
+        }
+
+        // Calcular tamaño de la caché en IndexedDB
+        async function getIndexedDBSize() {
+            if (!db) return 0;
+            
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction(['tiles'], 'readonly');
+                const store = transaction.objectStore('tiles');
+                let size = 0;
+                
+                store.openCursor().onsuccess = (event) => {
+                    const cursor = event.target.result;
+                    if (cursor) {
+                        // Estimación aproximada del tamaño (los tiles son base64)
+                        size += cursor.value.data.length * 0.75; // Aproximación de base64 a bytes
+                        cursor.continue();
+                    } else {
+                        resolve(size / (1024 * 1024)); // Convertir a MB
+                    }
+                };
+            });
+        }
+
+        // Limpiar caché de IndexedDB
+        async function clearIndexedDBCache() {
+            if (!db) return;
+            
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction(['tiles'], 'readwrite');
+                const store = transaction.objectStore('tiles');
+                const request = store.clear();
+                
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => resolve();
+            });
+        }
+
+        // Actualizar indicador de tamaño de caché
+        async function updateCacheSizeIndicator() {
+            if (CONFIG.USE_INDEXED_DB && db) {
+                const size = await getIndexedDBSize();
+                domElements.cacheSize.textContent = size.toFixed(2) + ' MB';
+                domElements.cacheIndicator.style.display = 'flex';
+            } else {
+                // Calcular tamaño de localStorage para tiles
+                let size = 0;
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && key.startsWith(CONFIG.TILE_CACHE_PREFIX)) {
+                        const item = localStorage.getItem(key);
+                        size += (item.length * 2) / (1024 * 1024); // Aproximación de tamaño en MB
+                    }
+                }
+                domElements.cacheSize.textContent = size.toFixed(2) + ' MB';
+                domElements.cacheIndicator.style.display = 'flex';
+            }
+        }
+
+        // Mostrar notificación
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.innerHTML = `
+                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+                <span>${message}</span>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Mostrar notificación
+            requestAnimationFrame(() => notification.classList.add('show'));
+            
+            // Ocultar y eliminar después de 3 segundos
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        // Mostrar/ocultar carga
+        function toggleLoading(show, text = 'Obteniendo ubicación...') {
+            domElements.loadingText.textContent = text;
+            domElements.loadingOverlay.style.display = show ? 'flex' : 'none';
+        }
+
+        // Mostrar indicador de ubicación
+        function showLocationIndicator() {
+            domElements.locationIndicator.style.display = 'block';
+            setTimeout(() => domElements.locationIndicator.style.display = 'none', 3000);
+        }
+
+        // Actualizar estado de conexión
+        function updateOnlineStatus() {
+            isOnline = navigator.onLine;
+            if (isOnline) {
+                domElements.offlineIndicator.style.display = 'none';
+                showNotification('Conexión restablecida', 'success');
+            } else {
+                domElements.offlineIndicator.style.display = 'flex';
+                showNotification('Estás offline, mostrando datos en caché', 'info');
+            }
+        }
+
+        // Actualizar panel de rendimiento
+        function updatePerformancePanel() {
+            const avgLoadTime = performanceMetrics.loadTimes.length > 0 
+                ? performanceMetrics.loadTimes.reduce((a, b) => a + b, 0) / performanceMetrics.loadTimes.length 
+                : 0;
+                
+            domElements.tilesCount.textContent = `${performanceMetrics.tilesFromCache}/${performanceMetrics.tilesLoaded} (${Math.round((performanceMetrics.tilesFromCache / performanceMetrics.tilesLoaded) * 100)}% caché)`;
+            domElements.loadTime.textContent = `${Math.round(avgLoadTime)}ms`;
+            domElements.lastUpdate.textContent = new Date(performanceMetrics.lastUpdate).toLocaleTimeString();
+        }
+
+        // Precargar tiles adyacentes
+        function prefetchAdjacentTiles(centerCoords, zoomLevel) {
+            if (!isOnline) return;
+            
+            const radius = CONFIG.PREFETCH_RADIUS;
+            for (let dx = -radius; dx <= radius; dx++) {
+                for (let dy = -radius; dy <= radius; dy++) {
+                    if (dx === 0 && dy === 0) continue; // No precargar el tile central otra vez
+                    
+                    const tileCoords = {
+                        x: centerCoords.x + dx,
+                        y: centerCoords.y + dy,
+                        z: zoomLevel
+                    };
+                    
+                    const cacheKey = `${CONFIG.TILE_CACHE_PREFIX}${tileCoords.x}_${tileCoords.y}_${tileCoords.z}`;
+                    
+                    // Verificar si ya está en caché
+                    if (tileCache.has(cacheKey)) continue;
+                    
+                    // Precargar en segundo plano
+                    setTimeout(() => {
+                        const tileUrl = `https://${['a', 'b', 'c'][Math.abs(tileCoords.x + tileCoords.y) % 3]}.tile.openstreetmap.org/${tileCoords.z}/${tileCoords.x}/${tileCoords.y}.png`;
+                        
+                        fetch(tileUrl)
+                            .then(response => response.blob())
+                            .then(blob => {
+                                const reader = new FileReader();
+                                reader.onload = () => {
+                                    cacheTile(cacheKey, reader.result);
+                                };
+                                reader.readAsDataURL(blob);
+                            })
+                            .catch(() => {
+                                // Silenciar errores de precarga
+                            });
+                    }, 100);
+                }
+            }
+        }
+
+        // Inicializar el mapa con caché para tiles
+        function initMap(center = CONFIG.DEFAULT_LOCATION, zoom = CONFIG.DEFAULT_ZOOM) {
+            // Crear capa de tiles con sistema de caché personalizado
+            const cachedTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 19,
+                detectRetina: true
+            });
+
+            // Sobrescribir el método createTile para implementar caché mejorada
+            cachedTileLayer.createTile = function(coords, done) {
+                const tile = document.createElement('img');
+                tile.width = this.options.tileSize;
+                tile.height = this.options.tileSize;
+                
+                const cacheKey = `${CONFIG.TILE_CACHE_PREFIX}${coords.x}_${coords.y}_${coords.z}`;
+                const startTime = performance.now();
+                
+                // Intentar obtener de caché en memoria primero
+                if (tileCache.has(cacheKey)) {
+                    tile.src = tileCache.get(cacheKey);
+                    performanceMetrics.tilesLoaded++;
+                    performanceMetrics.tilesFromCache++;
+                    performanceMetrics.loadTimes.push(performance.now() - startTime);
+                    performanceMetrics.lastUpdate = Date.now();
+                    updatePerformancePanel();
+                    done(null, tile);
+                    
+                    // Precargar tiles adyacentes
+                    prefetchAdjacentTiles(coords, coords.z);
+                    return tile;
+                }
+                
+                // Si no está en memoria, buscar en almacenamiento persistente
+                getTileFromPersistentStorage(cacheKey).then(cachedTile => {
+                    if (cachedTile && !isTileExpired(cachedTile.timestamp)) {
+                        // Almacenar en caché de memoria para acceso futuro
+                        tileCache.set(cacheKey, cachedTile.data);
+                        
+                        // Limitar el tamaño de la caché en memoria
+                        if (tileCache.size > CONFIG.MEMORY_CACHE_LIMIT) {
+                            const firstKey = tileCache.keys().next().value;
+                            tileCache.delete(firstKey);
+                        }
+                        
+                        tile.src = cachedTile.data;
+                        performanceMetrics.tilesLoaded++;
+                        performanceMetrics.tilesFromCache++;
+                        performanceMetrics.loadTimes.push(performance.now() - startTime);
+                        performanceMetrics.lastUpdate = Date.now();
+                        updatePerformancePanel();
+                        done(null, tile);
+                        
+                        // Precargar tiles adyacentes
+                        prefetchAdjacentTiles(coords, coords.z);
+                    } else {
+                        // Obtener de red y guardar en caché
+                        const tileUrl = this.getTileUrl(coords);
+                        
+                        // Cargar el tile con manejo de errores
+                        tile.onload = () => {
+                            // Convertir a base64 para almacenamiento
+                            const canvas = document.createElement('canvas');
+                            canvas.width = tile.width;
+                            canvas.height = tile.height;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(tile, 0, 0);
+                            
+                            const dataUrl = canvas.toDataURL('image/png');
+                            cacheTile(cacheKey, dataUrl);
+                            
+                            performanceMetrics.tilesLoaded++;
+                            performanceMetrics.loadTimes.push(performance.now() - startTime);
+                            performanceMetrics.lastUpdate = Date.now();
+                            updatePerformancePanel();
+                            
+                            // Precargar tiles adyacentes
+                            prefetchAdjacentTiles(coords, coords.z);
+                        };
+                        
+                        tile.onerror = () => {
+                            // Si estamos offline y no hay tile en caché, mostrar tile de error
+                            if (!isOnline) {
+                                tile.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256"><rect width="100%" height="100%" fill="lightgray"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="14" fill="gray">Sin conexión</text></svg>';
+                                done(null, tile);
+                            } else {
+                                done(new Error('Error loading tile'), tile);
+                            }
+                        };
+                        
+                        tile.src = tileUrl;
+                        done(null, tile);
+                    }
+                }).catch(() => {
+                    // Fallback a carga directa si hay error con el almacenamiento
+                    tile.src = this.getTileUrl(coords);
+                    done(null, tile);
+                });
+                
+                return tile;
+            };
+
+            map = L.map('map', {
+                center: center,
+                zoom: zoom,
+                layers: [cachedTileLayer],
+                zoomControl: false // Desactivamos el control de zoom por defecto
+            });
+
+            return map;
+        }
+
+        // Obtener tile del almacenamiento persistente (IndexedDB o localStorage)
+        async function getTileFromPersistentStorage(key) {
+            if (CONFIG.USE_INDEXED_DB && db) {
+                try {
+                    const data = await getTileFromIndexedDB(key);
+                    return data ? { data, timestamp: Date.now() } : null;
+                } catch (error) {
+                    console.warn('Error accediendo a IndexedDB:', error);
+                    return null;
+                }
+            } else {
+                // Fallback a localStorage
+                try {
+                    const item = localStorage.getItem(key);
+                    if (!item) return null;
+                    
+                    const parsed = JSON.parse(item);
+                    return { data: parsed.data, timestamp: parsed.timestamp };
+                } catch (e) {
+                    console.warn('Error obteniendo tile de localStorage:', e);
+                    return null;
+                }
+            }
+        }
+
+        // Almacenar tile en caché
+        async function cacheTile(key, data) {
+            // Almacenar en caché de memoria
+            tileCache.set(key, data);
+            
+            // Limitar el tamaño de la caché en memoria
+            if (tileCache.size > CONFIG.MEMORY_CACHE_LIMIT) {
+                const firstKey = tileCache.keys().next().value;
+                tileCache.delete(firstKey);
+            }
+            
+            // Almacenar en almacenamiento persistente
+            if (CONFIG.USE_INDEXED_DB && db) {
+                try {
+                    await storeTileInIndexedDB(key, data);
+                    // Verificar y limpiar caché si excede el tamaño máximo
+                    const currentSize = await getIndexedDBSize();
+                    if (currentSize > CONFIG.MAX_CACHE_SIZE_MB) {
+                        await clearExpiredTiles();
+                    }
+                    updateCacheSizeIndicator();
+                } catch (error) {
+                    console.warn('Error almacenando en IndexedDB:', error);
+                }
+            } else {
+                // Fallback a localStorage
+                try {
+                    const item = {
+                        data: data,
+                        timestamp: Date.now()
+                    };
+                    localStorage.setItem(key, JSON.stringify(item));
+                    updateCacheSizeIndicator();
+                } catch (e) {
+                    console.warn('Error almacenando tile en caché:', e);
+                    // Limpiar caché si está llena
+                    if (e.name === 'QuotaExceededError') {
+                        clearExpiredTiles();
+                    }
+                }
+            }
+        }
+
+        // Verificar si un tile ha expirado
+        function isTileExpired(timestamp) {
+            return Date.now() - timestamp > CONFIG.TILE_CACHE_EXPIRY;
+        }
+
+        // Limpiar tiles expirados
+        async function clearExpiredTiles() {
+            if (CONFIG.USE_INDEXED_DB && db) {
+                try {
+                    const transaction = db.transaction(['tiles'], 'readwrite');
+                    const store = transaction.objectStore('tiles');
+                    const index = store.index('timestamp');
+                    const range = IDBKeyRange.upperBound(Date.now() - CONFIG.TILE_CACHE_EXPIRY);
+                    
+                    index.openCursor(range).onsuccess = (event) => {
+                        const cursor = event.target.result;
+                        if (cursor) {
+                            store.delete(cursor.primaryKey);
+                            cursor.continue();
+                        }
+                    };
+                    
+                    await transaction.complete;
+                    updateCacheSizeIndicator();
+                } catch (error) {
+                    console.warn('Error limpiando IndexedDB:', error);
+                }
+            } else {
+                // Limpiar localStorage
+                try {
+                    const now = Date.now();
+                    for (let i = 0; i < localStorage.length; i++) {
+                        const key = localStorage.key(i);
+                        if (key && key.startsWith(CONFIG.TILE_CACHE_PREFIX)) {
+                            const item = localStorage.getItem(key);
+                            if (item) {
+                                const parsed = JSON.parse(item);
+                                if (now - parsed.timestamp > CONFIG.TILE_CACHE_EXPIRY) {
+                                    localStorage.removeItem(key);
+                                }
+                            }
+                        }
+                    }
+                    updateCacheSizeIndicator();
+                } catch (e) {
+                    console.warn('Error limpiando tiles expirados:', e);
+                }
+            }
+        }
+
+        // Limpiar toda la caché
+        async function clearAllCache() {
+            tileCache.clear();
+            
+            if (CONFIG.USE_INDEXED_DB && db) {
+                try {
+                    await clearIndexedDBCache();
+                    updateCacheSizeIndicator();
+                    showNotification('Caché limpiada correctamente', 'success');
+                } catch (error) {
+                    console.warn('Error limpiando IndexedDB:', error);
+                    showNotification('Error al limpiar la caché', 'error');
+                }
+            } else {
+                try {
+                    for (let i = localStorage.length - 1; i >= 0; i--) {
+                        const key = localStorage.key(i);
+                        if (key && key.startsWith(CONFIG.TILE_CACHE_PREFIX)) {
+                            localStorage.removeItem(key);
+                        }
+                    }
+                    updateCacheSizeIndicator();
+                    showNotification('Caché limpiada correctamente', 'success');
+                } catch (e) {
+                    console.warn('Error limpiando caché:', e);
+                    showNotification('Error al limpiar la caché', 'error');
+                }
+            }
+        }
+
+        // Actualizar la ubicación del usuario en el mapa con throttling
+        function updateUserLocation(position) {
+            const now = Date.now();
+            
+            // Aplicar throttling: solo actualizar si ha pasado el tiempo suficiente
+            if (now - lastPositionUpdate < CONFIG.THROTTLE_DELAY) {
+                return;
+            }
+            
+            lastPositionUpdate = now;
+            
+            const userLocation = [position.coords.latitude, position.coords.longitude];
+            
+            if (userMarker) {
+                userMarker.setLatLng(userLocation);
+            } else {
+                // Añadir marcador de ubicación del usuario
+                userMarker = L.marker(userLocation, {
+                    icon: L.divIcon({
+                        className: 'user-marker',
+                        html: '<div style="background-color:#4a6fa5; width:20px; height:20px; border-radius:50%; border:3px solid white; box-shadow:0 0 10px rgba(0,0,0,0.3);"></div>',
+                        iconSize: [20, 20]
+                    })
+                }).addTo(map);
+                
+                // Añadir popup al marcador
+                userMarker.bindPopup('<b>¡Estás aquí!</b>').openPopup();
+            }
+            
+            if (isTracking) {
+                map.setView(userLocation, map.getZoom());
+            }
+            
+            showLocationIndicator();
+            showNotification('Ubicación actualizada', 'success');
+        }
+
+        // Manejar errores de geolocalización
+        function handleGeolocationError(error) {
+            toggleLoading(false);
+            let errorMessage;
+            switch(error.code) {
+                case error.PERMISSION_DENIED:
+                    errorMessage = 'Permiso de ubicación denegado';
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    errorMessage = 'Información de ubicación no disponible';
+                    break;
+                case error.TIMEOUT:
+                    errorMessage = 'Tiempo de espera agotado';
+                    break;
+                default:
+                    errorMessage = 'Error desconocido al obtener la ubicación';
+            }
+            
+            showNotification(errorMessage, 'error');
+            return errorMessage;
+        }
+
+        // Obtener ubicación del usuario
+        function locateUser() {
+            return new Promise((resolve, reject) => {
+                if (!navigator.geolocation) {
+                    const error = new Error('Geolocalización no soportada');
+                    showNotification('Geolocalización no soportada', 'error');
+                    reject(error);
+                    return;
+                }
+
+                toggleLoading(true);
+                
+                // Opciones de geolocalización
+                const geoOptions = {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 60000
+                };
+                
+                navigator.geolocation.getCurrentPosition(
+                    position => {
+                        updateUserLocation(position);
+                        toggleLoading(false);
+                        resolve([position.coords.latitude, position.coords.longitude]);
+                    },
+                    error => {
+                        const errorMsg = handleGeolocationError(error);
+                        reject(new Error(errorMsg));
+                    },
+                    geoOptions
+                );
+            });
+        }
+
+        // Iniciar seguimiento de ubicación
+        function startTracking() {
+            if (!navigator.geolocation) return;
+            
+            const geoOptions = {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 60000
+            };
+            
+            if (geolocationWatchId !== null) {
+                navigator.geolocation.clearWatch(geolocationWatchId);
+            }
+            
+            geolocationWatchId = navigator.geolocation.watchPosition(
+                updateUserLocation,
+                handleGeolocationError,
+                geoOptions
+            );
+            
+            isTracking = true;
+            domElements.trackingBtn.classList.add('active');
+            showNotification('Seguimiento activado', 'success');
+        }
+
+        // Detener seguimiento de ubicación
+        function stopTracking() {
+            if (geolocationWatchId !== null) {
+                navigator.geolocation.clearWatch(geolocationWatchId);
+                geolocationWatchId = null;
+            }
+            
+            isTracking = false;
+            domElements.trackingBtn.classList.remove('active');
+            showNotification('Seguimiento desactivado', 'info');
+        }
+
+        // Alternar seguimiento de ubicación
+        function toggleTracking() {
+            if (isTracking) {
+                stopTracking();
+            } else {
+                startTracking();
+            }
+        }
+
+        // Manejar zoom in
+        function zoomIn() {
+            if (map) {
+                map.zoomIn();
+            }
+        }
+
+        // Manejar zoom out
+        function zoomOut() {
+            if (map) {
+                map.zoomOut();
+            }
+        }
+
+        // Inicializar la aplicación
+        async function initApplication() {
+            // Inicializar IndexedDB primero
+            await initIndexedDB();
+            
+            // Inicializar el mapa
+            initMap();
+            
+            // Configurar eventos de los botones
+            domElements.trackingBtn.addEventListener('click', toggleTracking);
+            domElements.refreshBtn.addEventListener('click', () => {
+                locateUser().catch(error => {
+                    console.error('Error obteniendo ubicación:', error);
+                });
+            });
+            domElements.zoomInBtn.addEventListener('click', zoomIn);
+            domElements.zoomOutBtn.addEventListener('click', zoomOut);
+            domElements.cacheBtn.addEventListener('click', clearAllCache);
+            domElements.performanceBtn.addEventListener('click', () => {
+                domElements.performancePanel.style.display = 
+                    domElements.performancePanel.style.display === 'none' || 
+                    domElements.performancePanel.style.display === '' 
+                    ? 'flex' : 'none';
+            });
+            
+            // Configurar detección de conexión
+            window.addEventListener('online', updateOnlineStatus);
+            window.addEventListener('offline', updateOnlineStatus);
+            updateOnlineStatus();
+            
+            // Intentar obtener la ubicación del usuario
+            locateUser().catch(error => {
+                console.error('Error obteniendo ubicación:', error);
+                showNotification('Usando ubicación por defecto', 'info');
+            });
+            
+            // Limpiar tiles expirados al iniciar
+            clearExpiredTiles();
+            
+            // Registrar Service Worker si está disponible
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('sw.js')
+                    .then(registration => {
+                        console.log('SW registrado:', registration);
+                    })
+                    .catch(error => {
+                        console.log('Error registrando SW:', error);
+                    });
+            }
+        }
+
+        // Limpiar recursos al cerrar
+        function cleanup() {
+            stopTracking();
+            if (map) {
+                map.remove();
+                map = null;
+            }
+            
+            // Eliminar event listeners
+            window.removeEventListener('online', updateOnlineStatus);
+            window.removeEventListener('offline', updateOnlineStatus);
+        }
+
+        // Inicializar la aplicación cuando se carga la página
+        document.addEventListener('DOMContentLoaded', initApplication);
+        
+        // Limpiar recursos cuando se cierra la página
+        window.addEventListener('beforeunload', cleanup);
+        window.addEventListener('unload', cleanup);
+    </script>
 </body>
 </html>
-    
-
