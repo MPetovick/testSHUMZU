@@ -1,9 +1,8 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>GeoCollector - Buscador de Materiales Mejorado</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -13,18 +12,23 @@
             padding: 0;
             box-sizing: border-box;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
         }
         
         body {
             background-color: #121212;
             color: #f5f5f5;
             overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            position: fixed;
         }
         
         #app {
             position: relative;
-            width: 100vw;
-            height: 100vh;
+            width: 100%;
+            height: 100%;
             display: flex;
             flex-direction: column;
         }
@@ -44,46 +48,89 @@
             top: 0;
             left: 0;
             right: 0;
-            padding: 16px;
+            padding: 12px 10px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%);
+            background: linear-gradient(to bottom, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.4) 80%, rgba(0,0,0,0) 100%);
         }
         
         .player-stats {
             display: flex;
-            gap: 16px;
+            gap: 8px;
+            flex-wrap: wrap;
+            max-width: 70%;
         }
         
         .stat {
-            background-color: rgba(40, 40, 40, 0.8);
-            padding: 8px 12px;
-            border-radius: 20px;
+            background-color: rgba(40, 40, 40, 0.9);
+            padding: 6px 10px;
+            border-radius: 16px;
             display: flex;
             align-items: center;
-            gap: 6px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            gap: 4px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+            font-size: 13px;
+            white-space: nowrap;
         }
         
         .energy-bar {
-            width: 100px;
-            height: 8px;
+            width: 60px;
+            height: 6px;
             background-color: #333;
-            border-radius: 4px;
+            border-radius: 3px;
             overflow: hidden;
+            margin-left: 4px;
         }
         
         .energy-fill {
             height: 100%;
             background-color: #4caf50;
-            border-radius: 4px;
+            border-radius: 3px;
             transition: width 0.3s;
+        }
+        
+        .mobile-bottom-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.8) 100%);
+            z-index: 3;
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 5px;
+            border-top: 1px solid #333;
+            pointer-events: auto;
+        }
+        
+        .mobile-action-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: none;
+            border: none;
+            color: #f5f5f5;
+            padding: 8px 5px;
+            border-radius: 12px;
+            font-size: 12px;
+            min-width: 60px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .mobile-action-btn i {
+            font-size: 20px;
+            margin-bottom: 4px;
+        }
+        
+        .mobile-action-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
         }
         
         .action-buttons {
             display: flex;
-            gap: 10px;
+            gap: 8px;
         }
         
         .action-btn {
@@ -91,14 +138,14 @@
             color: white;
             border: none;
             border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            font-size: 20px;
+            width: 45px;
+            height: 45px;
+            font-size: 18px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
             pointer-events: auto;
             transition: transform 0.2s, background-color 0.2s;
         }
@@ -149,19 +196,19 @@
         
         .material {
             position: absolute;
-            width: 50px;
-            height: 50px;
+            width: 42px;
+            height: 42px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px;
+            font-size: 20px;
             cursor: pointer;
             transform: translate(-50%, -50%);
             z-index: 3;
             pointer-events: auto;
             animation: pulse 2s infinite;
-            box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
             transition: transform 0.3s;
         }
         
@@ -177,22 +224,22 @@
         
         .material.common {
             background-color: #8d6e63;
-            box-shadow: 0 0 15px #8d6e63;
+            box-shadow: 0 0 12px #8d6e63;
         }
         
         .material.rare {
             background-color: #42a5f5;
-            box-shadow: 0 0 15px #42a5f5;
+            box-shadow: 0 0 12px #42a5f5;
         }
         
         .material.epic {
             background-color: #ab47bc;
-            box-shadow: 0 0 15px #ab47bc;
+            box-shadow: 0 0 12px #ab47bc;
         }
         
         .material.legendary {
             background-color: #ffd700;
-            box-shadow: 0 0 20px #ffd700;
+            box-shadow: 0 0 15px #ffd700;
         }
         
         .collection-effect {
@@ -226,24 +273,25 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 90%;
+            width: 95%;
             max-width: 500px;
-            max-height: 80vh;
+            max-height: 85vh;
             background-color: #1e1e1e;
             border-radius: 12px;
-            padding: 20px;
+            padding: 16px;
             z-index: 10;
             box-shadow: 0 5px 25px rgba(0, 0, 0, 0.5);
             pointer-events: auto;
             display: none;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
         
         .panel-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
+            margin-bottom: 16px;
             padding-bottom: 10px;
             border-bottom: 1px solid #333;
         }
@@ -254,20 +302,30 @@
             color: #f5f5f5;
             font-size: 24px;
             cursor: pointer;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         
         .tab-container {
             display: flex;
             gap: 5px;
             margin-bottom: 15px;
+            overflow-x: auto;
+            padding-bottom: 5px;
+            -webkit-overflow-scrolling: touch;
         }
         
         .tab {
-            padding: 8px 15px;
+            padding: 8px 12px;
             background-color: #2d2d2d;
             border-radius: 5px;
             cursor: pointer;
             transition: background-color 0.2s;
+            white-space: nowrap;
+            font-size: 14px;
         }
         
         .tab.active {
@@ -284,38 +342,39 @@
         
         .inventory-items {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-            gap: 10px;
+            grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+            gap: 8px;
         }
         
         .inventory-item {
             background-color: #2d2d2d;
             border-radius: 8px;
-            padding: 10px;
+            padding: 8px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 5px;
+            gap: 4px;
             transition: transform 0.2s;
+            font-size: 13px;
         }
         
         .inventory-item:hover {
-            transform: translateY(-5px);
+            transform: translateY(-3px);
             background-color: #3d3d3d;
         }
         
         .item-icon {
-            font-size: 24px;
-            margin-bottom: 5px;
+            font-size: 22px;
+            margin-bottom: 4px;
         }
         
         .item-count {
-            font-size: 14px;
+            font-size: 12px;
             color: #aaa;
         }
         
         .section {
-            margin-top: 20px;
+            margin-top: 16px;
             padding-top: 10px;
             border-top: 1px solid #333;
         }
@@ -327,7 +386,8 @@
             padding: 10px;
             background-color: #2d2d2d;
             border-radius: 8px;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
+            font-size: 14px;
         }
         
         .upgrade-btn, .craft-button, .build-button {
@@ -335,8 +395,10 @@
             color: white;
             border: none;
             border-radius: 4px;
-            padding: 5px 10px;
+            padding: 6px 12px;
             cursor: pointer;
+            font-size: 13px;
+            white-space: nowrap;
         }
         
         .upgrade-btn:disabled, .craft-button:disabled, .build-button:disabled {
@@ -346,9 +408,9 @@
         
         .mission-progress {
             width: 100%;
-            height: 8px;
+            height: 6px;
             background-color: #333;
-            border-radius: 4px;
+            border-radius: 3px;
             margin-top: 5px;
             overflow: hidden;
         }
@@ -356,7 +418,7 @@
         .progress-bar {
             height: 100%;
             background-color: #42a5f5;
-            border-radius: 4px;
+            border-radius: 3px;
         }
         
         .overlay-backdrop {
@@ -375,13 +437,16 @@
             top: 20px;
             left: 50%;
             transform: translateX(-50%);
-            background-color: rgba(40, 40, 40, 0.9);
-            padding: 10px 20px;
+            background-color: rgba(40, 40, 40, 0.95);
+            padding: 12px 20px;
             border-radius: 20px;
             z-index: 6;
             display: none;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
             animation: slideIn 0.3s ease-out;
+            max-width: 90%;
+            text-align: center;
+            font-size: 14px;
         }
         
         @keyframes slideIn {
@@ -394,7 +459,7 @@
             bottom: 0;
             left: 0;
             right: 0;
-            height: 6px;
+            height: 5px;
             background-color: #333;
             z-index: 2;
         }
@@ -419,13 +484,13 @@
         
         .material-name-tag {
             position: absolute;
-            bottom: -25px;
+            bottom: -22px;
             left: 50%;
             transform: translateX(-50%);
             background-color: rgba(0, 0, 0, 0.7);
             padding: 2px 8px;
             border-radius: 10px;
-            font-size: 12px;
+            font-size: 11px;
             white-space: nowrap;
             opacity: 0;
             transition: opacity 0.3s;
@@ -443,17 +508,17 @@
         
         .building {
             position: absolute;
-            width: 60px;
-            height: 60px;
+            width: 50px;
+            height: 50px;
             border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 28px;
+            font-size: 24px;
             z-index: 3;
             transform: translate(-50%, -50%);
             cursor: pointer;
-            box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+            box-shadow: 0 0 12px rgba(255, 255, 255, 0.3);
             transition: transform 0.3s;
         }
         
@@ -488,7 +553,7 @@
         .daily-rewards {
             position: absolute;
             bottom: 70px;
-            right: 20px;
+            right: 15px;
             z-index: 2;
             display: flex;
             flex-direction: column;
@@ -496,26 +561,26 @@
         }
         
         .daily-reward-btn {
-            width: 50px;
-            height: 50px;
+            width: 45px;
+            height: 45px;
             border-radius: 50%;
             background-color: #ff9800;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 20px;
+            font-size: 18px;
             cursor: pointer;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
             pointer-events: auto;
         }
         
         .event-indicator {
             position: absolute;
-            top: 20px;
-            right: 20px;
+            top: 15px;
+            right: 15px;
             background-color: #f44336;
-            width: 20px;
-            height: 20px;
+            width: 18px;
+            height: 18px;
             border-radius: 50%;
             z-index: 2;
             animation: blink 2s infinite;
@@ -533,33 +598,141 @@
             margin-top: 5px;
         }
         
-        @media (max-width: 600px) {
+        /* Media queries para responsividad */
+        @media (min-width: 769px) {
+            .mobile-bottom-bar {
+                display: none;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .action-buttons {
+                display: none;
+            }
+            
+            .top-bar {
+                padding: 10px 8px;
+            }
+            
+            .player-stats {
+                gap: 6px;
+            }
+            
             .stat {
-                font-size: 14px;
-                padding: 6px 10px;
+                padding: 5px 8px;
+                font-size: 12px;
+                border-radius: 14px;
             }
             
-            .action-btn {
-                width: 45px;
-                height: 45px;
-                font-size: 18px;
-            }
-            
-            .material {
-                width: 40px;
-                height: 40px;
-                font-size: 20px;
+            .energy-bar {
+                width: 50px;
+                height: 5px;
             }
             
             .panel {
-                width: 95%;
-                padding: 15px;
+                width: 98%;
+                padding: 14px;
+                max-height: 90vh;
+            }
+            
+            .inventory-items {
+                grid-template-columns: repeat(auto-fill, minmax(65px, 1fr));
+                gap: 6px;
+            }
+            
+            .inventory-item {
+                padding: 6px;
+                font-size: 12px;
+            }
+            
+            .item-icon {
+                font-size: 20px;
+            }
+            
+            .tool-item, .mission-item, .shop-item, .craft-item, .build-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+            
+            .upgrade-btn, .craft-button, .build-button {
+                align-self: flex-end;
+            }
+            
+            .daily-rewards {
+                bottom: 80px;
+                right: 10px;
+            }
+            
+            .daily-reward-btn {
+                width: 40px;
+                height: 40px;
+                font-size: 16px;
+            }
+            
+            .material {
+                width: 38px;
+                height: 38px;
+                font-size: 18px;
             }
             
             .building {
-                width: 50px;
-                height: 50px;
-                font-size: 24px;
+                width: 45px;
+                height: 45px;
+                font-size: 22px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .stat {
+                font-size: 11px;
+                padding: 4px 6px;
+            }
+            
+            .energy-bar {
+                width: 40px;
+            }
+            
+            .mobile-action-btn {
+                min-width: 50px;
+                padding: 6px 3px;
+                font-size: 11px;
+            }
+            
+            .mobile-action-btn i {
+                font-size: 18px;
+            }
+            
+            .panel-header h2 {
+                font-size: 18px;
+            }
+            
+            .tab {
+                padding: 6px 10px;
+                font-size: 12px;
+            }
+            
+            .material {
+                width: 36px;
+                height: 36px;
+                font-size: 16px;
+            }
+            
+            .material-name-tag {
+                font-size: 10px;
+                bottom: -20px;
+            }
+        }
+        
+        /* Mejoras de rendimiento */
+        .will-change {
+            will-change: transform, opacity;
+        }
+        
+        /* Prevenir zoom en inputs en iOS */
+        @media screen and (max-width: 768px) {
+            input, select, textarea {
+                font-size: 16px !important;
             }
         }
     </style>
@@ -597,6 +770,30 @@
                 <button class="action-btn build-btn" id="buildBtn" title="Construir"><i class="fas fa-house"></i></button>
                 <button class="action-btn inventory-btn" id="inventoryBtn" title="Inventario"><i class="fas fa-backpack"></i></button>
             </div>
+        </div>
+        
+        <!-- Barra inferior para móviles -->
+        <div class="mobile-bottom-bar">
+            <button class="mobile-action-btn" id="mobileMissionsBtn">
+                <i class="fas fa-tasks"></i>
+                <span>Misiones</span>
+            </button>
+            <button class="mobile-action-btn" id="mobileShopBtn">
+                <i class="fas fa-shopping-cart"></i>
+                <span>Tienda</span>
+            </button>
+            <button class="mobile-action-btn" id="mobileCraftBtn">
+                <i class="fas fa-hammer"></i>
+                <span>Fabricar</span>
+            </button>
+            <button class="mobile-action-btn" id="mobileBuildBtn">
+                <i class="fas fa-house"></i>
+                <span>Construir</span>
+            </button>
+            <button class="mobile-action-btn" id="mobileInventoryBtn">
+                <i class="fas fa-backpack"></i>
+                <span>Inventario</span>
+            </button>
         </div>
         
         <div class="xp-bar">
@@ -889,7 +1086,10 @@
             events: {
                 active: [],
                 nextEvent: Date.now() + 3600000 // Próximo evento en 1 hora
-            }
+            },
+            // Nuevas propiedades para optimización
+            materialElements: [],
+            isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
         };
 
         // Elementos DOM
@@ -936,7 +1136,13 @@
             shopItems: document.getElementById('shopItems'),
             sellItems: document.getElementById('sellItems'),
             dailyRewardBtn: document.getElementById('dailyRewardBtn'),
-            eventIndicator: document.getElementById('eventIndicator')
+            eventIndicator: document.getElementById('eventIndicator'),
+            // Nuevos elementos para móviles
+            mobileInventoryBtn: document.getElementById('mobileInventoryBtn'),
+            mobileMissionsBtn: document.getElementById('mobileMissionsBtn'),
+            mobileShopBtn: document.getElementById('mobileShopBtn'),
+            mobileCraftBtn: document.getElementById('mobileCraftBtn'),
+            mobileBuildBtn: document.getElementById('mobileBuildBtn')
         };
 
         // Inicializar el mapa
@@ -978,7 +1184,11 @@
                                 console.error('Error en geolocalización:', err);
                                 simulateGeolocation();
                             },
-                            { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
+                            { 
+                                enableHighAccuracy: true, 
+                                maximumAge: 10000, 
+                                timeout: 5000 
+                            }
                         );
                     },
                     (error) => {
@@ -990,6 +1200,11 @@
             } else {
                 simulateGeolocation();
             }
+
+            // Ajustar el mapa después de que se cargue
+            setTimeout(() => {
+                elements.map.invalidateSize();
+            }, 100);
         }
 
         // Generar zonas alrededor de una posición
@@ -1165,7 +1380,7 @@
             
             // Crear elemento DOM para el material
             const materialElement = document.createElement('div');
-            materialElement.className = `material ${material.rarity}`;
+            materialElement.className = `material ${material.rarity} will-change`;
             materialElement.innerHTML = `${material.icon}<div class="material-name-tag">${material.name}</div>`;
             materialElement.dataset.type = materialType;
             materialElement.dataset.zone = zone.id;
@@ -1202,13 +1417,22 @@
                 type: materialType,
                 position: [materialLat, materialLng]
             });
+
+            // Almacenar para optimización
+            gameState.materialElements.push(materialElement);
         }
 
         // Limpiar materiales de una zona
         function clearZoneMaterials(zone) {
             for (const material of zone.materials) {
-                if (material.element.parentNode) {
+                if (material.element && material.element.parentNode) {
                     material.element.remove();
+                    
+                    // Eliminar de la lista de optimización
+                    const index = gameState.materialElements.indexOf(material.element);
+                    if (index > -1) {
+                        gameState.materialElements.splice(index, 1);
+                    }
                 }
             }
             zone.materials = [];
@@ -1298,8 +1522,9 @@
         // Actualizar rango visual del detector
         function updateDetectorRange() {
             const range = gameState.tools.detector.range;
-            elements.detectorRange.style.width = `${range * 6}px`;
-            elements.detectorRange.style.height = `${range * 6}px`;
+            const rangePx = range * (gameState.isMobile ? 4 : 6);
+            elements.detectorRange.style.width = `${rangePx}px`;
+            elements.detectorRange.style.height = `${rangePx}px`;
             elements.detectorRangeValue.textContent = range;
         }
 
@@ -1329,8 +1554,16 @@
             showCollectionEffect(element, type);
             
             // Eliminar elemento del DOM y de la zona
-            element.remove();
+            if (element.parentNode) {
+                element.remove();
+            }
             zone.materials = zone.materials.filter(m => m.element !== element);
+            
+            // Eliminar de la lista de optimización
+            const index = gameState.materialElements.indexOf(element);
+            if (index > -1) {
+                gameState.materialElements.splice(index, 1);
+            }
             
             // Actualizar UI
             updateUI();
@@ -1381,7 +1614,7 @@
         function showCollectionEffect(element, type) {
             const rect = element.getBoundingClientRect();
             const effect = document.createElement('div');
-            effect.className = `collection-effect ${gameState.inventory[type].rarity}`;
+            effect.className = `collection-effect ${gameState.inventory[type].rarity} will-change`;
             
             effect.style.left = `${rect.left + rect.width/2}px`;
             effect.style.top = `${rect.top + rect.height/2}px`;
@@ -1390,24 +1623,26 @@
             
             // Animación
             setTimeout(() => {
-                effect.style.width = '100px';
-                effect.style.height = '100px';
-                effect.style.marginLeft = '-50px';
-                effect.style.marginTop = '-50px';
+                effect.style.width = '80px';
+                effect.style.height = '80px';
+                effect.style.marginLeft = '-40px';
+                effect.style.marginTop = '-40px';
                 effect.style.opacity = '0.8';
             }, 10);
             
             setTimeout(() => {
                 effect.style.opacity = '0';
-                effect.style.width = '200px';
-                effect.style.height = '200px';
-                effect.style.marginLeft = '-100px';
-                effect.style.marginTop = '-100px';
+                effect.style.width = '160px';
+                effect.style.height = '160px';
+                effect.style.marginLeft = '-80px';
+                effect.style.marginTop = '-80px';
             }, 300);
             
             // Eliminar después de la animación
             setTimeout(() => {
-                effect.remove();
+                if (effect.parentNode) {
+                    effect.remove();
+                }
             }, 1000);
         }
 
@@ -1805,7 +2040,7 @@
                             gameState.inventory[material.type].rarity === "legendary") {
                             
                             // Destacar material
-                            material.element.style.boxShadow = "0 0 20px #ffd700";
+                            material.element.style.boxShadow = "0 0 15px #ffd700";
                             material.element.style.animation = "pulse 0.5s infinite";
                         }
                     }
@@ -1849,7 +2084,7 @@
                 
                 // Crear marcador en el mapa
                 const buildingElement = document.createElement('div');
-                buildingElement.className = 'building';
+                buildingElement.className = 'building will-change';
                 buildingElement.innerHTML = building.icon;
                 buildingElement.title = building.name;
                 
@@ -2143,7 +2378,7 @@
             // Iniciar verificación de eventos
             checkForSpecialEvents();
             
-            // Event listeners
+            // Event listeners para botones de escritorio
             elements.inventoryBtn.addEventListener('click', () => {
                 elements.inventoryPanel.style.display = 'block';
                 elements.overlayBackdrop.style.display = 'block';
@@ -2174,6 +2409,38 @@
                 updateUI();
             });
             
+            // Event listeners para botones móviles
+            elements.mobileInventoryBtn.addEventListener('click', () => {
+                elements.inventoryPanel.style.display = 'block';
+                elements.overlayBackdrop.style.display = 'block';
+                updateUI();
+            });
+            
+            elements.mobileMissionsBtn.addEventListener('click', () => {
+                elements.missionsPanel.style.display = 'block';
+                elements.overlayBackdrop.style.display = 'block';
+                updateMissionsUI();
+            });
+            
+            elements.mobileShopBtn.addEventListener('click', () => {
+                elements.shopPanel.style.display = 'block';
+                elements.overlayBackdrop.style.display = 'block';
+                updateUI();
+            });
+            
+            elements.mobileCraftBtn.addEventListener('click', () => {
+                elements.craftPanel.style.display = 'block';
+                elements.overlayBackdrop.style.display = 'block';
+                updateUI();
+            });
+            
+            elements.mobileBuildBtn.addEventListener('click', () => {
+                elements.buildPanel.style.display = 'block';
+                elements.overlayBackdrop.style.display = 'block';
+                updateUI();
+            });
+            
+            // Event listeners para cerrar paneles
             elements.closeInventory.addEventListener('click', () => {
                 elements.inventoryPanel.style.display = 'none';
                 elements.overlayBackdrop.style.display = 'none';
@@ -2204,6 +2471,7 @@
                 saveGame();
             });
             
+            // Event listeners para mejoras de herramientas
             elements.upgradeDetector.addEventListener('click', () => {
                 upgradeTool('detector');
                 saveGame();
@@ -2219,6 +2487,7 @@
                 saveGame();
             });
             
+            // Cerrar paneles al hacer clic fuera
             elements.overlayBackdrop.addEventListener('click', () => {
                 elements.inventoryPanel.style.display = 'none';
                 elements.missionsPanel.style.display = 'none';
@@ -2229,6 +2498,7 @@
                 saveGame();
             });
             
+            // Recompensa diaria
             elements.dailyRewardBtn.addEventListener('click', () => {
                 claimDailyReward();
                 saveGame();
@@ -2262,6 +2532,13 @@
             
             // Actualizar UI inicial
             updateUI();
+
+            // Ajustar el mapa para dispositivos móviles
+            if (gameState.isMobile) {
+                setTimeout(() => {
+                    elements.map.invalidateSize();
+                }, 300);
+            }
         }
 
         // Iniciar cuando el DOM esté listo
