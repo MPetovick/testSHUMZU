@@ -1,1 +1,2271 @@
 
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoCollector - Buscador de Materiales Mejorado</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #121212;
+            color: #f5f5f5;
+            overflow: hidden;
+        }
+        
+        #app {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        #map {
+            flex: 1;
+            z-index: 1;
+        }
+        
+        .overlay {
+            position: absolute;
+            z-index: 2;
+            pointer-events: none;
+        }
+        
+        .top-bar {
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%);
+        }
+        
+        .player-stats {
+            display: flex;
+            gap: 16px;
+        }
+        
+        .stat {
+            background-color: rgba(40, 40, 40, 0.8);
+            padding: 8px 12px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+        
+        .energy-bar {
+            width: 100px;
+            height: 8px;
+            background-color: #333;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .energy-fill {
+            height: 100%;
+            background-color: #4caf50;
+            border-radius: 4px;
+            transition: width 0.3s;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .action-btn {
+            background-color: #2e7d32;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            pointer-events: auto;
+            transition: transform 0.2s, background-color 0.2s;
+        }
+        
+        .action-btn:hover {
+            transform: scale(1.05);
+        }
+        
+        .inventory-btn {
+            background-color: #2e7d32;
+        }
+        
+        .inventory-btn:hover {
+            background-color: #1b5e20;
+        }
+        
+        .missions-btn {
+            background-color: #1565c0;
+        }
+        
+        .missions-btn:hover {
+            background-color: #0d47a1;
+        }
+        
+        .shop-btn {
+            background-color: #9c27b0;
+        }
+        
+        .shop-btn:hover {
+            background-color: #7b1fa2;
+        }
+        
+        .craft-btn {
+            background-color: #f57c00;
+        }
+        
+        .craft-btn:hover {
+            background-color: #e65100;
+        }
+        
+        .build-btn {
+            background-color: #7b1fa2;
+        }
+        
+        .build-btn:hover {
+            background-color: #6a1b9a;
+        }
+        
+        .material {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+            transform: translate(-50%, -50%);
+            z-index: 3;
+            pointer-events: auto;
+            animation: pulse 2s infinite;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+            transition: transform 0.3s;
+        }
+        
+        .material:hover {
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+        
+        @keyframes pulse {
+            0% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.1); }
+            100% { transform: translate(-50%, -50%) scale(1); }
+        }
+        
+        .material.common {
+            background-color: #8d6e63;
+            box-shadow: 0 0 15px #8d6e63;
+        }
+        
+        .material.rare {
+            background-color: #42a5f5;
+            box-shadow: 0 0 15px #42a5f5;
+        }
+        
+        .material.epic {
+            background-color: #ab47bc;
+            box-shadow: 0 0 15px #ab47bc;
+        }
+        
+        .material.legendary {
+            background-color: #ffd700;
+            box-shadow: 0 0 20px #ffd700;
+        }
+        
+        .collection-effect {
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            opacity: 0;
+            z-index: 4;
+            pointer-events: none;
+        }
+        
+        .collection-effect.common {
+            background-color: rgba(141, 110, 99, 0.5);
+        }
+        
+        .collection-effect.rare {
+            background-color: rgba(66, 165, 245, 0.5);
+        }
+        
+        .collection-effect.epic {
+            background-color: rgba(171, 71, 188, 0.5);
+        }
+        
+        .collection-effect.legendary {
+            background-color: rgba(255, 215, 0, 0.5);
+        }
+        
+        .panel {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            background-color: #1e1e1e;
+            border-radius: 12px;
+            padding: 20px;
+            z-index: 10;
+            box-shadow: 0 5px 25px rgba(0, 0, 0, 0.5);
+            pointer-events: auto;
+            display: none;
+            overflow-y: auto;
+        }
+        
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #333;
+        }
+        
+        .close-btn {
+            background: none;
+            border: none;
+            color: #f5f5f5;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        
+        .tab-container {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+        }
+        
+        .tab {
+            padding: 8px 15px;
+            background-color: #2d2d2d;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .tab.active {
+            background-color: #2e7d32;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .inventory-items {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 10px;
+        }
+        
+        .inventory-item {
+            background-color: #2d2d2d;
+            border-radius: 8px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            transition: transform 0.2s;
+        }
+        
+        .inventory-item:hover {
+            transform: translateY(-5px);
+            background-color: #3d3d3d;
+        }
+        
+        .item-icon {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+        
+        .item-count {
+            font-size: 14px;
+            color: #aaa;
+        }
+        
+        .section {
+            margin-top: 20px;
+            padding-top: 10px;
+            border-top: 1px solid #333;
+        }
+        
+        .tool-item, .mission-item, .shop-item, .craft-item, .build-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background-color: #2d2d2d;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        
+        .upgrade-btn, .craft-button, .build-button {
+            background-color: #2e7d32;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+        
+        .upgrade-btn:disabled, .craft-button:disabled, .build-button:disabled {
+            background-color: #444;
+            cursor: not-allowed;
+        }
+        
+        .mission-progress {
+            width: 100%;
+            height: 8px;
+            background-color: #333;
+            border-radius: 4px;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background-color: #42a5f5;
+            border-radius: 4px;
+        }
+        
+        .overlay-backdrop {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 5;
+            display: none;
+        }
+        
+        .notification {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(40, 40, 40, 0.9);
+            padding: 10px 20px;
+            border-radius: 20px;
+            z-index: 6;
+            display: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translate(-50%, -20px); opacity: 0; }
+            to { transform: translate(-50%, 0); opacity: 1; }
+        }
+        
+        .xp-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 6px;
+            background-color: #333;
+            z-index: 2;
+        }
+        
+        .xp-progress {
+            height: 100%;
+            background-color: #ff9800;
+            width: 0%;
+            transition: width 0.5s;
+        }
+        
+        .detector-range {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border: 2px dashed rgba(66, 165, 245, 0.5);
+            border-radius: 50%;
+            z-index: 2;
+            pointer-events: none;
+        }
+        
+        .material-name-tag {
+            position: absolute;
+            bottom: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .material:hover .material-name-tag {
+            opacity: 1;
+        }
+        
+        .mission-reward {
+            font-size: 12px;
+            color: #ffd54f;
+            margin-top: 5px;
+        }
+        
+        .building {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            z-index: 3;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+            transition: transform 0.3s;
+        }
+        
+        .building:hover {
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+        
+        .zone-marker {
+            position: absolute;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            z-index: 1;
+            pointer-events: none;
+        }
+        
+        .zone-marker.urban {
+            border-color: rgba(100, 100, 100, 0.5);
+        }
+        
+        .zone-marker.park {
+            border-color: rgba(76, 175, 80, 0.5);
+        }
+        
+        .zone-marker.water {
+            border-color: rgba(33, 150, 243, 0.5);
+        }
+        
+        .zone-marker.landmark {
+            border-color: rgba(255, 193, 7, 0.5);
+        }
+        
+        .daily-rewards {
+            position: absolute;
+            bottom: 70px;
+            right: 20px;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .daily-reward-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: #ff9800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            pointer-events: auto;
+        }
+        
+        .event-indicator {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background-color: #f44336;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            z-index: 2;
+            animation: blink 2s infinite;
+        }
+        
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .craft-requirements {
+            font-size: 12px;
+            color: #aaa;
+            margin-top: 5px;
+        }
+        
+        @media (max-width: 600px) {
+            .stat {
+                font-size: 14px;
+                padding: 6px 10px;
+            }
+            
+            .action-btn {
+                width: 45px;
+                height: 45px;
+                font-size: 18px;
+            }
+            
+            .material {
+                width: 40px;
+                height: 40px;
+                font-size: 20px;
+            }
+            
+            .panel {
+                width: 95%;
+                padding: 15px;
+            }
+            
+            .building {
+                width: 50px;
+                height: 50px;
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div id="map"></div>
+        
+        <div class="overlay top-bar">
+            <div class="player-stats">
+                <div class="stat">
+                    <span>⭐</span>
+                    <span id="level">1</span>
+                </div>
+                <div class="stat">
+                    <span>👣</span>
+                    <span id="distance">0m</span>
+                </div>
+                <div class="stat">
+                    <span>💰</span>
+                    <span id="coins">100</span>
+                </div>
+                <div class="stat">
+                    <span>⚡</span>
+                    <span id="energy">100</span>/<span id="max-energy">100</span>
+                    <div class="energy-bar">
+                        <div class="energy-fill" id="energyFill"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="action-buttons">
+                <button class="action-btn missions-btn" id="missionsBtn" title="Misiones"><i class="fas fa-tasks"></i></button>
+                <button class="action-btn shop-btn" id="shopBtn" title="Tienda"><i class="fas fa-shopping-cart"></i></button>
+                <button class="action-btn craft-btn" id="craftBtn" title="Fabricar"><i class="fas fa-hammer"></i></button>
+                <button class="action-btn build-btn" id="buildBtn" title="Construir"><i class="fas fa-house"></i></button>
+                <button class="action-btn inventory-btn" id="inventoryBtn" title="Inventario"><i class="fas fa-backpack"></i></button>
+            </div>
+        </div>
+        
+        <div class="xp-bar">
+            <div class="xp-progress" id="xpProgress"></div>
+        </div>
+        
+        <div class="detector-range" id="detectorRange"></div>
+        
+        <div class="overlay-backdrop" id="overlayBackdrop"></div>
+        
+        <div class="panel" id="inventoryPanel">
+            <div class="panel-header">
+                <h2>Inventario</h2>
+                <button class="close-btn" id="closeInventory">×</button>
+            </div>
+            <div class="tab-container">
+                <div class="tab active" data-tab="materials">Materiales</div>
+                <div class="tab" data-tab="tools">Herramientas</div>
+            </div>
+            <div class="tab-content active" id="materialsTab">
+                <div class="inventory-items" id="inventoryItems">
+                    <!-- Los items del inventario se generarán dinámicamente -->
+                </div>
+            </div>
+            <div class="tab-content" id="toolsTab">
+                <div class="tool-item">
+                    <div>
+                        <div>Detector de Materiales</div>
+                        <div class="item-count">Nivel <span id="detectorLevel">1</span> - Alcance: <span id="detectorRangeValue">50</span>m</div>
+                    </div>
+                    <button class="upgrade-btn" id="upgradeDetector" data-cost="150">Mejorar</button>
+                </div>
+                <div class="tool-item">
+                    <div>
+                        <div>Bolsa de Colección</div>
+                        <div class="item-count">Capacidad: <span id="bagCapacity">20</span> materiales</div>
+                    </div>
+                    <button class="upgrade-btn" id="upgradeBag" data-cost="200">Mejorar</button>
+                </div>
+                <div class="tool-item">
+                    <div>
+                        <div>Energía Máxima</div>
+                        <div class="item-count">Energía: <span id="energyCapacity">100</span></div>
+                    </div>
+                    <button class="upgrade-btn" id="upgradeEnergy" data-cost="300">Mejorar</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="panel" id="missionsPanel">
+            <div class="panel-header">
+                <h2>Misiones</h2>
+                <button class="close-btn" id="closeMissions">×</button>
+            </div>
+            <div class="tab-container">
+                <div class="tab active" data-tab="daily">Diarias</div>
+                <div class="tab" data-tab="weekly">Semanales</div>
+                <div class="tab" data-tab="special">Especiales</div>
+            </div>
+            <div class="tab-content active" id="dailyTab">
+                <div id="dailyMissions">
+                    <!-- Las misiones diarias se generarán dinámicamente -->
+                </div>
+            </div>
+            <div class="tab-content" id="weeklyTab">
+                <div id="weeklyMissions">
+                    <!-- Las misiones semanales se generarán dinámicamente -->
+                </div>
+            </div>
+            <div class="tab-content" id="specialTab">
+                <div id="specialMissions">
+                    <!-- Las misiones especiales se generarán dinámicamente -->
+                </div>
+            </div>
+        </div>
+        
+        <div class="panel" id="shopPanel">
+            <div class="panel-header">
+                <h2>Tienda</h2>
+                <button class="close-btn" id="closeShop">×</button>
+            </div>
+            <div class="section">
+                <h3>Comprar Materiales</h3>
+                <div id="shopItems">
+                    <!-- Los items de la tienda se generarán dinámicamente -->
+                </div>
+            </div>
+            <div class="section">
+                <h3>Vender Materiales</h3>
+                <div id="sellItems">
+                    <!-- Los items para vender se generarán dinámicamente -->
+                </div>
+            </div>
+        </div>
+        
+        <div class="panel" id="craftPanel">
+            <div class="panel-header">
+                <h2>Fabricación</h2>
+                <button class="close-btn" id="closeCraft">×</button>
+            </div>
+            <div id="craftItems">
+                <!-- Las recetas de fabricación se generarán dinámicamente -->
+            </div>
+        </div>
+        
+        <div class="panel" id="buildPanel">
+            <div class="panel-header">
+                <h2>Construcciones</h2>
+                <button class="close-btn" id="closeBuild">×</button>
+            </div>
+            <div id="buildItems">
+                <!-- Las opciones de construcción se generarán dinámicamente -->
+            </div>
+        </div>
+        
+        <div class="notification" id="notification"></div>
+        
+        <div class="daily-rewards">
+            <div class="daily-reward-btn" id="dailyRewardBtn" title="Recompensa Diaria">
+                <i class="fas fa-gift"></i>
+            </div>
+        </div>
+        
+        <div class="event-indicator" id="eventIndicator" style="display: none;"></div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+        // Estado del juego mejorado
+        const gameState = {
+            level: 1,
+            xp: 0,
+            xpToNextLevel: 100,
+            coins: 100,
+            energy: 100,
+            maxEnergy: 100,
+            energyRefreshRate: 0.5, // Energía por minuto
+            lastEnergyUpdate: Date.now(),
+            distanceTraveled: 0,
+            lastPosition: null,
+            inventory: {
+                "wood": { name: "Madera", icon: "🪵", count: 0, rarity: "common", value: 5 },
+                "stone": { name: "Piedra", icon: "🪨", count: 0, rarity: "common", value: 7 },
+                "iron": { name: "Hierro", icon: "⛓️", count: 0, rarity: "rare", value: 15 },
+                "gold": { name: "Oro", icon: "🥇", count: 0, rarity: "epic", value: 30 },
+                "crystal": { name: "Cristal", icon: "🔮", count: 0, rarity: "epic", value: 50 },
+                "diamond": { name: "Diamante", icon: "💎", count: 0, rarity: "legendary", value: 100 },
+                "herb": { name: "Hierbas", icon: "🌿", count: 0, rarity: "common", value: 3 },
+                "water_essence": { name: "Esencia de Agua", icon: "💧", count: 0, rarity: "rare", value: 12 }
+            },
+            tools: {
+                detector: { level: 1, range: 50, upgradeCost: 150 },
+                bag: { level: 1, capacity: 20, upgradeCost: 200 },
+                energy: { level: 1, upgradeCost: 300 }
+            },
+            craftingRecipes: {
+                "advanced_detector": { 
+                    name: "Detector Avanzado", 
+                    icon: "📡", 
+                    description: "Aumenta el rango de detección en 25m",
+                    requirements: { "iron": 5, "crystal": 2, "gold": 1 },
+                    effect: { type: "detector_boost", value: 25 },
+                    unlocked: false
+                },
+                "energy_capsule": {
+                    name: "Cápsula de Energía", 
+                    icon: "🔋", 
+                    description: "Recupera 20 puntos de energía",
+                    requirements: { "herb": 3, "water_essence": 1 },
+                    effect: { type: "energy_boost", value: 20 },
+                    unlocked: true
+                },
+                "treasure_map": {
+                    name: "Mapa del Tesoro", 
+                    icon: "🗺️", 
+                    description: "Revela recursos raros en el mapa por 5 minutos",
+                    requirements: { "wood": 3, "stone": 3, "gold": 1 },
+                    effect: { type: "reveal_rare", value: 300 },
+                    unlocked: false
+                }
+            },
+            buildings: {
+                "lumberjack": {
+                    name: "Cabaña de Leñador",
+                    icon: "🛖",
+                    description: "Genera madera cada hora",
+                    requirements: { "wood": 20, "stone": 10 },
+                    level: 0,
+                    position: null,
+                    production: { "wood": 5 },
+                    productionInterval: 3600000, // 1 hora
+                    lastProduction: 0
+                },
+                "mine": {
+                    name: "Mina Básica",
+                    icon: "⛏️",
+                    description: "Genera piedra y hierro cada hora",
+                    requirements: { "wood": 10, "stone": 30, "iron": 5 },
+                    level: 0,
+                    position: null,
+                    production: { "stone": 3, "iron": 1 },
+                    productionInterval: 3600000,
+                    lastProduction: 0
+                },
+                "energy_station": {
+                    name: "Estación de Energía",
+                    icon: "⚡",
+                    description: "Aumenta la regeneración de energía",
+                    requirements: { "iron": 15, "crystal": 5, "gold": 3 },
+                    level: 0,
+                    position: null,
+                    effect: { type: "energy_regen", value: 0.2 },
+                    productionInterval: 0,
+                    lastProduction: 0
+                }
+            },
+            missions: {
+                daily: [
+                    { 
+                        id: "collect_common", 
+                        name: "Coleccionista Novato", 
+                        description: "Recolecta 10 materiales comunes", 
+                        type: "collect", 
+                        target: "common", 
+                        progress: 0, 
+                        targetCount: 10, 
+                        reward: { coins: 50, xp: 25 },
+                        completed: false
+                    },
+                    { 
+                        id: "walk_distance", 
+                        name: "Caminante", 
+                        description: "Camina 500 metros", 
+                        type: "distance", 
+                        progress: 0, 
+                        targetCount: 500, 
+                        reward: { coins: 75, xp: 35 },
+                        completed: false
+                    },
+                    { 
+                        id: "craft_item", 
+                        name: "Artesano", 
+                        description: "Fabrica 3 objetos", 
+                        type: "craft", 
+                        progress: 0, 
+                        targetCount: 3, 
+                        reward: { coins: 100, xp: 50 },
+                        completed: false
+                    }
+                ],
+                weekly: [
+                    { 
+                        id: "collect_rare_weekly", 
+                        name: "Cazador de Rarezas", 
+                        description: "Encuentra 10 materiales raros", 
+                        type: "collect", 
+                        target: "rare", 
+                        progress: 0, 
+                        targetCount: 10, 
+                        reward: { coins: 300, xp: 150 },
+                        completed: false
+                    },
+                    { 
+                        id: "walk_5km", 
+                        name: "Explorador", 
+                        description: "Camina 5 km", 
+                        type: "distance", 
+                        progress: 0, 
+                        targetCount: 5000, 
+                        reward: { coins: 500, xp: 200 },
+                        completed: false
+                    }
+                ],
+                special: []
+            },
+            zones: [],
+            currentZone: null,
+            zoneSize: 0.002, // Tamaño de zona en grados
+            materials: [],
+            spawnRate: 5000,
+            spawnTimer: null,
+            playerMarker: null,
+            usingRealGeolocation: false,
+            buildingsOnMap: [],
+            lastSave: Date.now(),
+            dailyReward: {
+                lastClaimed: null,
+                streak: 0
+            },
+            events: {
+                active: [],
+                nextEvent: Date.now() + 3600000 // Próximo evento en 1 hora
+            }
+        };
+
+        // Elementos DOM
+        const elements = {
+            map: null,
+            level: document.getElementById('level'),
+            distance: document.getElementById('distance'),
+            coins: document.getElementById('coins'),
+            energy: document.getElementById('energy'),
+            maxEnergy: document.getElementById('max-energy'),
+            energyFill: document.getElementById('energyFill'),
+            xpProgress: document.getElementById('xpProgress'),
+            inventoryBtn: document.getElementById('inventoryBtn'),
+            missionsBtn: document.getElementById('missionsBtn'),
+            shopBtn: document.getElementById('shopBtn'),
+            craftBtn: document.getElementById('craftBtn'),
+            buildBtn: document.getElementById('buildBtn'),
+            inventoryPanel: document.getElementById('inventoryPanel'),
+            missionsPanel: document.getElementById('missionsPanel'),
+            shopPanel: document.getElementById('shopPanel'),
+            craftPanel: document.getElementById('craftPanel'),
+            buildPanel: document.getElementById('buildPanel'),
+            closeInventory: document.getElementById('closeInventory'),
+            closeMissions: document.getElementById('closeMissions'),
+            closeShop: document.getElementById('closeShop'),
+            closeCraft: document.getElementById('closeCraft'),
+            closeBuild: document.getElementById('closeBuild'),
+            inventoryItems: document.getElementById('inventoryItems'),
+            dailyMissions: document.getElementById('dailyMissions'),
+            weeklyMissions: document.getElementById('weeklyMissions'),
+            specialMissions: document.getElementById('specialMissions'),
+            detectorLevel: document.getElementById('detectorLevel'),
+            detectorRangeValue: document.getElementById('detectorRangeValue'),
+            detectorRange: document.getElementById('detectorRange'),
+            bagCapacity: document.getElementById('bagCapacity'),
+            energyCapacity: document.getElementById('energyCapacity'),
+            upgradeDetector: document.getElementById('upgradeDetector'),
+            upgradeBag: document.getElementById('upgradeBag'),
+            upgradeEnergy: document.getElementById('upgradeEnergy'),
+            overlayBackdrop: document.getElementById('overlayBackdrop'),
+            notification: document.getElementById('notification'),
+            craftItems: document.getElementById('craftItems'),
+            buildItems: document.getElementById('buildItems'),
+            shopItems: document.getElementById('shopItems'),
+            sellItems: document.getElementById('sellItems'),
+            dailyRewardBtn: document.getElementById('dailyRewardBtn'),
+            eventIndicator: document.getElementById('eventIndicator')
+        };
+
+        // Inicializar el mapa
+        function initMap() {
+            elements.map = L.map('map').setView([40.4168, -3.7038], 15);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(elements.map);
+            
+            // Marcador del jugador
+            gameState.playerMarker = L.marker([40.4168, -3.7038]).addTo(elements.map)
+                .bindPopup('¡Estás aquí!')
+                .openPopup();
+            
+            // Actualizar el rango del detector visual
+            updateDetectorRange();
+            
+            // Generar zonas iniciales
+            generateZones([40.4168, -3.7038]);
+            
+            // Intentar usar geolocalización real
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const { latitude, longitude } = position.coords;
+                        elements.map.setView([latitude, longitude], 15);
+                        gameState.playerMarker.setLatLng([latitude, longitude]);
+                        gameState.lastPosition = { lat: latitude, lng: longitude };
+                        gameState.usingRealGeolocation = true;
+                        
+                        // Generar zonas alrededor del jugador
+                        generateZones([latitude, longitude]);
+                        
+                        // Iniciar seguimiento de ubicación
+                        navigator.geolocation.watchPosition(
+                            (pos) => updatePosition(pos),
+                            (err) => {
+                                console.error('Error en geolocalización:', err);
+                                simulateGeolocation();
+                            },
+                            { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
+                        );
+                    },
+                    (error) => {
+                        console.error('Error obteniendo ubicación:', error);
+                        simulateGeolocation();
+                    },
+                    { timeout: 10000 }
+                );
+            } else {
+                simulateGeolocation();
+            }
+        }
+
+        // Generar zonas alrededor de una posición
+        function generateZones(center) {
+            // Limpiar zonas existentes
+            gameState.zones = [];
+            
+            // Crear 9 zonas (3x3) alrededor del centro
+            for (let latOffset = -1; latOffset <= 1; latOffset++) {
+                for (let lngOffset = -1; lngOffset <= 1; lngOffset++) {
+                    const zoneLat = center[0] + latOffset * gameState.zoneSize;
+                    const zoneLng = center[1] + lngOffset * gameState.zoneSize;
+                    const zoneId = `${zoneLat.toFixed(4)},${zoneLng.toFixed(4)}`;
+                    
+                    // Determinar tipo de zona basado en posición (pseudo-aleatorio pero consistente)
+                    const zoneTypes = ["urban", "park", "water", "landmark"];
+                    const zoneType = zoneTypes[Math.abs(Math.floor(Math.sin(zoneLat * 1000) * 4)) % 4];
+                    
+                    gameState.zones.push({
+                        id: zoneId,
+                        center: [zoneLat, zoneLng],
+                        type: zoneType,
+                        materials: [],
+                        discovered: false,
+                        exploration: 0
+                    });
+                    
+                    // Añadir marcador de zona al mapa (inicialmente oculto)
+                    const zoneMarker = L.circle([zoneLat, zoneLng], {
+                        radius: gameState.zoneSize * 111320 / 2, // Convertir a metros
+                        color: getZoneColor(zoneType),
+                        fillOpacity: 0.1,
+                        weight: 2
+                    }).addTo(elements.map);
+                    
+                    // Almacenar referencia
+                    gameState.zones[gameState.zones.length - 1].marker = zoneMarker;
+                }
+            }
+        }
+
+        // Obtener color para el tipo de zona
+        function getZoneColor(type) {
+            switch(type) {
+                case "urban": return "#888";
+                case "park": return "#4caf50";
+                case "water": return "#2196f3";
+                case "landmark": return "#ffc107";
+                default: return "#fff";
+            }
+        }
+
+        // Actualizar posición con geolocalización real
+        function updatePosition(position) {
+            const { latitude, longitude } = position.coords;
+            const accuracy = position.coords.accuracy;
+            
+            gameState.playerMarker.setLatLng([latitude, longitude]);
+            elements.map.panTo([latitude, longitude]);
+            
+            // Verificar si estamos en una nueva zona
+            checkCurrentZone(latitude, longitude);
+            
+            // Calcular distancia recorrida
+            if (gameState.lastPosition) {
+                const distance = calculateDistance(
+                    gameState.lastPosition.lat, 
+                    gameState.lastPosition.lng,
+                    latitude,
+                    longitude
+                );
+                
+                gameState.distanceTraveled += distance;
+                elements.distance.textContent = `${Math.round(gameState.distanceTraveled)}m`;
+                
+                // Actualizar misiones de distancia
+                updateDistanceMissions(distance);
+                
+                // Aumentar exploración de la zona actual
+                if (gameState.currentZone) {
+                    gameState.currentZone.exploration += distance / 100;
+                    if (gameState.currentZone.exploration > 100) {
+                        gameState.currentZone.exploration = 100;
+                    }
+                }
+            }
+            
+            gameState.lastPosition = { lat: latitude, lng: longitude };
+            
+            // Añadir precisión como círculo
+            if (gameState.accuracyCircle) {
+                elements.map.removeLayer(gameState.accuracyCircle);
+            }
+            gameState.accuracyCircle = L.circle([latitude, longitude], {
+                radius: accuracy,
+                color: '#3388ff',
+                fillOpacity: 0.2
+            }).addTo(elements.map);
+        }
+
+        // Verificar y actualizar la zona actual
+        function checkCurrentZone(lat, lng) {
+            for (const zone of gameState.zones) {
+                const distance = calculateDistance(
+                    lat, lng,
+                    zone.center[0], zone.center[1]
+                );
+                
+                // Si estamos dentro del radio de la zona
+                if (distance < gameState.zoneSize * 111320 / 2) {
+                    if (gameState.currentZone !== zone) {
+                        gameState.currentZone = zone;
+                        
+                        // Marcar zona como descubierta
+                        if (!zone.discovered) {
+                            zone.discovered = true;
+                            zone.marker.setStyle({fillOpacity: 0.3});
+                            showNotification(`¡Descubriste una zona ${zone.type}!`);
+                            
+                            // Recompensa por descubrir zona
+                            addXP(20);
+                            gameState.coins += 30;
+                            elements.coins.textContent = gameState.coins;
+                        }
+                        
+                        // Generar materiales para esta zona
+                        spawnZoneMaterials(zone);
+                    }
+                    return;
+                }
+            }
+            
+            // Si no estamos en ninguna zona conocida, generar nuevas zonas
+            generateZones([lat, lng]);
+            gameState.currentZone = null;
+        }
+
+        // Generar materiales para una zona específica
+        function spawnZoneMaterials(zone) {
+            // Limpiar materiales existentes de esta zona
+            clearZoneMaterials(zone);
+            
+            // Determinar qué materiales pueden aparecer en esta zona
+            const materialOptions = [];
+            
+            switch(zone.type) {
+                case "urban":
+                    materialOptions.push("stone", "iron", "crystal");
+                    break;
+                case "park":
+                    materialOptions.push("wood", "herb", "water_essence");
+                    break;
+                case "water":
+                    materialOptions.push("water_essence", "crystal", "herb");
+                    break;
+                case "landmark":
+                    materialOptions.push("gold", "diamond", "crystal");
+                    break;
+            }
+            
+            // Generar entre 3 y 8 materiales según nivel de exploración
+            const materialCount = 3 + Math.floor(zone.exploration / 20);
+            
+            for (let i = 0; i < materialCount; i++) {
+                const materialType = materialOptions[Math.floor(Math.random() * materialOptions.length)];
+                createMaterialInZone(zone, materialType);
+            }
+        }
+
+        // Crear un material en una zona específica
+        function createMaterialInZone(zone, materialType) {
+            const material = gameState.inventory[materialType];
+            
+            // Crear elemento DOM para el material
+            const materialElement = document.createElement('div');
+            materialElement.className = `material ${material.rarity}`;
+            materialElement.innerHTML = `${material.icon}<div class="material-name-tag">${material.name}</div>`;
+            materialElement.dataset.type = materialType;
+            materialElement.dataset.zone = zone.id;
+            
+            // Posicionar aleatoriamente dentro de la zona
+            const zoneRadius = gameState.zoneSize * 111320 / 2; // Radio en metros
+            const angle = Math.random() * Math.PI * 2;
+            const distance = Math.random() * zoneRadius * 0.8; // Dejar margen para no salirse
+            
+            // Calcular posición relativa al centro de la zona
+            const latOffset = (Math.cos(angle) * distance) / 111320;
+            const lngOffset = (Math.sin(angle) * distance) / (111320 * Math.cos(zone.center[0] * Math.PI / 180));
+            
+            const materialLat = zone.center[0] + latOffset;
+            const materialLng = zone.center[1] + lngOffset;
+            
+            // Convertir a posición en píxeles en el mapa (simplificado)
+            const mapContainer = elements.map.getContainer();
+            const point = elements.map.latLngToContainerPoint([materialLat, materialLng]);
+            
+            materialElement.style.left = `${point.x}px`;
+            materialElement.style.top = `${point.y}px`;
+            
+            // Añadir evento de clic
+            materialElement.addEventListener('click', () => {
+                collectMaterial(materialType, materialElement, zone);
+            });
+            
+            document.getElementById('app').appendChild(materialElement);
+            
+            // Guardar referencia
+            zone.materials.push({
+                element: materialElement,
+                type: materialType,
+                position: [materialLat, materialLng]
+            });
+        }
+
+        // Limpiar materiales de una zona
+        function clearZoneMaterials(zone) {
+            for (const material of zone.materials) {
+                if (material.element.parentNode) {
+                    material.element.remove();
+                }
+            }
+            zone.materials = [];
+        }
+
+        // Simular geolocalización (solo para demostración o fallback)
+        function simulateGeolocation() {
+            let lat = 40.4168;
+            let lng = -3.7038;
+            
+            // Generar zonas iniciales
+            generateZones([lat, lng]);
+            
+            // Mover el marcador aleatoriamente para simular movimiento
+            setInterval(() => {
+                const latChange = (Math.random() - 0.5) * 0.0005;
+                const lngChange = (Math.random() - 0.5) * 0.0005;
+                
+                lat += latChange;
+                lng += lngChange;
+                
+                gameState.playerMarker.setLatLng([lat, lng]);
+                elements.map.panTo([lat, lng]);
+                
+                // Verificar si estamos en una nueva zona
+                checkCurrentZone(lat, lng);
+                
+                // Calcular distancia recorrida
+                if (gameState.lastPosition) {
+                    const distance = calculateDistance(
+                        gameState.lastPosition.lat, 
+                        gameState.lastPosition.lng,
+                        lat,
+                        lng
+                    );
+                    
+                    gameState.distanceTraveled += distance;
+                    elements.distance.textContent = `${Math.round(gameState.distanceTraveled)}m`;
+                    
+                    // Actualizar misiones de distancia
+                    updateDistanceMissions(distance);
+                    
+                    // Aumentar exploración de la zona actual
+                    if (gameState.currentZone) {
+                        gameState.currentZone.exploration += distance / 100;
+                        if (gameState.currentZone.exploration > 100) {
+                            gameState.currentZone.exploration = 100;
+                        }
+                    }
+                }
+                
+                gameState.lastPosition = { lat, lng };
+                
+            }, 3000);
+        }
+
+        // Actualizar misiones de distancia
+        function updateDistanceMissions(distance) {
+            for (const category in gameState.missions) {
+                gameState.missions[category].forEach(mission => {
+                    if (mission.type === 'distance' && !mission.completed) {
+                        mission.progress += distance;
+                        if (mission.progress >= mission.targetCount) {
+                            mission.progress = mission.targetCount;
+                            mission.completed = true;
+                            completeMission(mission);
+                        }
+                    }
+                });
+            }
+            updateMissionsUI();
+        }
+
+        // Calcular distancia entre dos puntos
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371000;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = 
+                Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        // Actualizar rango visual del detector
+        function updateDetectorRange() {
+            const range = gameState.tools.detector.range;
+            elements.detectorRange.style.width = `${range * 6}px`;
+            elements.detectorRange.style.height = `${range * 6}px`;
+            elements.detectorRangeValue.textContent = range;
+        }
+
+        // Recolectar material
+        function collectMaterial(type, element, zone) {
+            // Verificar capacidad de la bolsa
+            const totalMaterials = Object.values(gameState.inventory).reduce((total, item) => total + item.count, 0);
+            if (totalMaterials >= gameState.tools.bag.capacity) {
+                showNotification("¡Bolsa llena! Mejora tu bolsa o vende materiales.");
+                return;
+            }
+            
+            // Verificar energía
+            if (gameState.energy < 5) {
+                showNotification("¡No tienes suficiente energía! Descansa o usa una cápsula de energía.");
+                return;
+            }
+            
+            // Consumir energía
+            gameState.energy -= 5;
+            updateEnergyUI();
+            
+            // Añadir al inventario
+            gameState.inventory[type].count++;
+            
+            // Mostrar efecto de recolección
+            showCollectionEffect(element, type);
+            
+            // Eliminar elemento del DOM y de la zona
+            element.remove();
+            zone.materials = zone.materials.filter(m => m.element !== element);
+            
+            // Actualizar UI
+            updateUI();
+            
+            // Mostrar notificación
+            showNotification(`¡Encontraste ${gameState.inventory[type].name}! (-5 energía)`);
+            
+            // Añadir experiencia
+            addXP(10);
+            
+            // Actualizar misiones de recolección
+            updateCollectionMissions(type);
+        }
+
+        // Actualizar misiones de recolección
+        function updateCollectionMissions(type) {
+            const rarity = gameState.inventory[type].rarity;
+            
+            for (const category in gameState.missions) {
+                gameState.missions[category].forEach(mission => {
+                    if (mission.type === 'collect' && !mission.completed) {
+                        if (mission.target === rarity || mission.target === type) {
+                            mission.progress++;
+                            if (mission.progress >= mission.targetCount) {
+                                mission.progress = mission.targetCount;
+                                mission.completed = true;
+                                completeMission(mission);
+                            }
+                        }
+                    }
+                });
+            }
+            updateMissionsUI();
+        }
+
+        // Completar misión
+        function completeMission(mission) {
+            gameState.coins += mission.reward.coins;
+            addXP(mission.reward.xp);
+            
+            showNotification(`¡Misión completada: ${mission.name}! Recompensa: ${mission.reward.coins} monedas y ${mission.reward.xp} XP`);
+            
+            // Actualizar UI
+            elements.coins.textContent = gameState.coins;
+        }
+
+        // Mostrar efecto de recolección
+        function showCollectionEffect(element, type) {
+            const rect = element.getBoundingClientRect();
+            const effect = document.createElement('div');
+            effect.className = `collection-effect ${gameState.inventory[type].rarity}`;
+            
+            effect.style.left = `${rect.left + rect.width/2}px`;
+            effect.style.top = `${rect.top + rect.height/2}px`;
+            
+            document.getElementById('app').appendChild(effect);
+            
+            // Animación
+            setTimeout(() => {
+                effect.style.width = '100px';
+                effect.style.height = '100px';
+                effect.style.marginLeft = '-50px';
+                effect.style.marginTop = '-50px';
+                effect.style.opacity = '0.8';
+            }, 10);
+            
+            setTimeout(() => {
+                effect.style.opacity = '0';
+                effect.style.width = '200px';
+                effect.style.height = '200px';
+                effect.style.marginLeft = '-100px';
+                effect.style.marginTop = '-100px';
+            }, 300);
+            
+            // Eliminar después de la animación
+            setTimeout(() => {
+                effect.remove();
+            }, 1000);
+        }
+
+        // Añadir experiencia
+        function addXP(amount) {
+            gameState.xp += amount;
+            
+            // Actualizar barra de XP
+            const xpPercent = (gameState.xp / gameState.xpToNextLevel) * 100;
+            elements.xpProgress.style.width = `${xpPercent}%`;
+            
+            // Comprobar subida de nivel
+            if (gameState.xp >= gameState.xpToNextLevel) {
+                gameState.level++;
+                gameState.xp -= gameState.xpToNextLevel;
+                gameState.xpToNextLevel = Math.round(gameState.xpToNextLevel * 1.5);
+                
+                elements.level.textContent = gameState.level;
+                showNotification(`¡Subiste al nivel ${gameState.level}!`);
+                
+                // Recompensa por subir de nivel
+                gameState.coins += gameState.level * 50;
+                elements.coins.textContent = gameState.coins;
+                
+                // Aumentar energía máxima
+                gameState.maxEnergy += 10;
+                gameState.energy = gameState.maxEnergy;
+                updateEnergyUI();
+                
+                // Actualizar barra de XP
+                const newXpPercent = (gameState.xp / gameState.xpToNextLevel) * 100;
+                elements.xpProgress.style.width = `${newXpPercent}%`;
+                
+                // Desbloquear nuevas recetas según el nivel
+                unlockRecipesByLevel();
+            }
+        }
+
+        // Desbloquear recetas según el nivel
+        function unlockRecipesByLevel() {
+            if (gameState.level >= 3 && !gameState.craftingRecipes.advanced_detector.unlocked) {
+                gameState.craftingRecipes.advanced_detector.unlocked = true;
+                showNotification("¡Has desbloqueado el detector avanzado!");
+            }
+            
+            if (gameState.level >= 5 && !gameState.craftingRecipes.treasure_map.unlocked) {
+                gameState.craftingRecipes.treasure_map.unlocked = true;
+                showNotification("¡Has desbloqueado el mapa del tesoro!");
+            }
+        }
+
+        // Actualizar UI de energía
+        function updateEnergyUI() {
+            elements.energy.textContent = Math.floor(gameState.energy);
+            elements.maxEnergy.textContent = gameState.maxEnergy;
+            elements.energyFill.style.width = `${(gameState.energy / gameState.maxEnergy) * 100}%`;
+        }
+
+        // Actualizar UI
+        function updateUI() {
+            // Actualizar inventario
+            elements.inventoryItems.innerHTML = '';
+            
+            for (const key in gameState.inventory) {
+                const item = gameState.inventory[key];
+                if (item.count > 0) {
+                    const itemElement = document.createElement('div');
+                    itemElement.className = 'inventory-item';
+                    itemElement.innerHTML = `
+                        <div class="item-icon">${item.icon}</div>
+                        <div class="item-name">${item.name}</div>
+                        <div class="item-count">${item.count}</div>
+                    `;
+                    elements.inventoryItems.appendChild(itemElement);
+                }
+            }
+            
+            // Actualizar herramientas
+            elements.detectorLevel.textContent = gameState.tools.detector.level;
+            elements.bagCapacity.textContent = gameState.tools.bag.capacity;
+            elements.energyCapacity.textContent = gameState.maxEnergy;
+            
+            // Actualizar botones de mejora
+            elements.upgradeDetector.dataset.cost = gameState.tools.detector.upgradeCost;
+            elements.upgradeDetector.textContent = `Mejorar (${gameState.tools.detector.upgradeCost})`;
+            elements.upgradeDetector.disabled = gameState.coins < gameState.tools.detector.upgradeCost;
+            
+            elements.upgradeBag.dataset.cost = gameState.tools.bag.upgradeCost;
+            elements.upgradeBag.textContent = `Mejorar (${gameState.tools.bag.upgradeCost})`;
+            elements.upgradeBag.disabled = gameState.coins < gameState.tools.bag.upgradeCost;
+            
+            elements.upgradeEnergy.dataset.cost = gameState.tools.energy.upgradeCost;
+            elements.upgradeEnergy.textContent = `Mejorar (${gameState.tools.energy.upgradeCost})`;
+            elements.upgradeEnergy.disabled = gameState.coins < gameState.tools.energy.upgradeCost;
+            
+            // Actualizar tienda
+            updateShopUI();
+            
+            // Actualizar fabricación
+            updateCraftingUI();
+            
+            // Actualizar construcción
+            updateBuildingUI();
+        }
+
+        // Actualizar UI de misiones
+        function updateMissionsUI() {
+            elements.dailyMissions.innerHTML = '';
+            elements.weeklyMissions.innerHTML = '';
+            elements.specialMissions.innerHTML = '';
+            
+            for (const category in gameState.missions) {
+                const container = elements[`${category}Missions`];
+                
+                gameState.missions[category].forEach(mission => {
+                    const missionElement = document.createElement('div');
+                    missionElement.className = 'mission-item';
+                    
+                    const progressPercent = (mission.progress / mission.targetCount) * 100;
+                    
+                    missionElement.innerHTML = `
+                        <div>
+                            <div><strong>${mission.name}</strong></div>
+                            <div>${mission.description}</div>
+                            <div class="mission-progress">
+                                <div class="progress-bar" style="width: ${progressPercent}%"></div>
+                            </div>
+                            <div class="mission-reward">Recompensa: ${mission.reward.coins} monedas, ${mission.reward.xp} XP</div>
+                        </div>
+                        <div>${mission.completed ? '✅' : `${mission.progress}/${mission.targetCount}`}</div>
+                    `;
+                    
+                    container.appendChild(missionElement);
+                });
+            }
+        }
+
+        // Actualizar UI de la tienda
+        function updateShopUI() {
+            // Sección de compra
+            elements.shopItems.innerHTML = '';
+            for (const key in gameState.inventory) {
+                const item = gameState.inventory[key];
+                const shopItem = document.createElement('div');
+                shopItem.className = 'shop-item';
+                
+                shopItem.innerHTML = `
+                    <div>
+                        <div>${item.icon} ${item.name}</div>
+                        <div class="item-count">Precio: ${item.value * 2} monedas</div>
+                    </div>
+                    <button class="upgrade-btn buy-btn" data-item="${key}" data-price="${item.value * 2}">
+                        Comprar
+                    </button>
+                `;
+                
+                elements.shopItems.appendChild(shopItem);
+            }
+            
+            // Sección de venta
+            elements.sellItems.innerHTML = '';
+            for (const key in gameState.inventory) {
+                const item = gameState.inventory[key];
+                if (item.count > 0) {
+                    const sellItem = document.createElement('div');
+                    sellItem.className = 'shop-item';
+                    
+                    sellItem.innerHTML = `
+                        <div>
+                            <div>${item.icon} ${item.name}</div>
+                            <div class="item-count">Tienes: ${item.count} | Precio: ${item.value} monedas</div>
+                        </div>
+                        <button class="upgrade-btn sell-btn" data-item="${key}" data-price="${item.value}">
+                            Vender 1
+                        </button>
+                    `;
+                    
+                    elements.sellItems.appendChild(sellItem);
+                }
+            }
+            
+            // Añadir event listeners a los botones de compra/venta
+            document.querySelectorAll('.buy-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const item = e.target.dataset.item;
+                    const price = parseInt(e.target.dataset.price);
+                    buyItem(item, price);
+                });
+            });
+            
+            document.querySelectorAll('.sell-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const item = e.target.dataset.item;
+                    const price = parseInt(e.target.dataset.price);
+                    sellItem(item, price);
+                });
+            });
+        }
+
+        // Actualizar UI de fabricación
+        function updateCraftingUI() {
+            elements.craftItems.innerHTML = '';
+            
+            for (const key in gameState.craftingRecipes) {
+                const recipe = gameState.craftingRecipes[key];
+                
+                if (recipe.unlocked) {
+                    const craftItem = document.createElement('div');
+                    craftItem.className = 'craft-item';
+                    
+                    // Verificar si tenemos los materiales necesarios
+                    let canCraft = true;
+                    let requirementsHTML = '';
+                    
+                    for (const material in recipe.requirements) {
+                        const required = recipe.requirements[material];
+                        const has = gameState.inventory[material].count;
+                        requirementsHTML += `${gameState.inventory[material].icon} ${required} `;
+                        
+                        if (has < required) {
+                            canCraft = false;
+                        }
+                    }
+                    
+                    craftItem.innerHTML = `
+                        <div>
+                            <div>${recipe.icon} ${recipe.name}</div>
+                            <div>${recipe.description}</div>
+                            <div class="craft-requirements">Requiere: ${requirementsHTML}</div>
+                        </div>
+                        <button class="craft-button" data-recipe="${key}" ${canCraft ? '' : 'disabled'}>
+                            Fabricar
+                        </button>
+                    `;
+                    
+                    elements.craftItems.appendChild(craftItem);
+                }
+            }
+            
+            // Añadir event listeners a los botones de fabricación
+            document.querySelectorAll('.craft-button').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const recipe = e.target.dataset.recipe;
+                    craftItem(recipe);
+                });
+            });
+        }
+
+        // Actualizar UI de construcción
+        function updateBuildingUI() {
+            elements.buildItems.innerHTML = '';
+            
+            for (const key in gameState.buildings) {
+                const building = gameState.buildings[key];
+                
+                const buildItem = document.createElement('div');
+                buildItem.className = 'build-item';
+                
+                // Verificar si tenemos los materiales necesarios
+                let canBuild = true;
+                let requirementsHTML = '';
+                
+                for (const material in building.requirements) {
+                    const required = building.requirements[material];
+                    const has = gameState.inventory[material].count;
+                    requirementsHTML += `${gameState.inventory[material].icon} ${required} `;
+                    
+                    if (has < required) {
+                        canBuild = false;
+                    }
+                }
+                
+                buildItem.innerHTML = `
+                    <div>
+                        <div>${building.icon} ${building.name}</div>
+                        <div>${building.description}</div>
+                        <div class="craft-requirements">Requiere: ${requirementsHTML}</div>
+                    </div>
+                    <button class="build-button" data-building="${key}" ${canBuild ? '' : 'disabled'}>
+                        Construir
+                    </button>
+                `;
+                
+                elements.buildItems.appendChild(buildItem);
+            }
+            
+            // Añadir event listeners a los botones de construcción
+            document.querySelectorAll('.build-button').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const building = e.target.dataset.building;
+                    buildStructure(building);
+                });
+            });
+        }
+
+        // Comprar item de la tienda
+        function buyItem(item, price) {
+            if (gameState.coins >= price) {
+                gameState.coins -= price;
+                gameState.inventory[item].count++;
+                
+                elements.coins.textContent = gameState.coins;
+                updateUI();
+                showNotification(`Has comprado 1 ${gameState.inventory[item].name} por ${price} monedas`);
+            } else {
+                showNotification("No tienes suficientes monedas");
+            }
+        }
+
+        // Vender item
+        function sellItem(item, price) {
+            if (gameState.inventory[item].count > 0) {
+                gameState.inventory[item].count--;
+                gameState.coins += price;
+                
+                elements.coins.textContent = gameState.coins;
+                updateUI();
+                showNotification(`Has vendido 1 ${gameState.inventory[item].name} por ${price} monedas`);
+            } else {
+                showNotification("No tienes este material para vender");
+            }
+        }
+
+        // Fabricar item
+        function craftItem(recipeKey) {
+            const recipe = gameState.craftingRecipes[recipeKey];
+            
+            // Verificar materiales
+            for (const material in recipe.requirements) {
+                if (gameState.inventory[material].count < recipe.requirements[material]) {
+                    showNotification(`No tienes suficiente ${gameState.inventory[material].name}`);
+                    return;
+                }
+            }
+            
+            // Consumir materiales
+            for (const material in recipe.requirements) {
+                gameState.inventory[material].count -= recipe.requirements[material];
+            }
+            
+            // Aplicar efecto
+            applyCraftEffect(recipe.effect);
+            
+            // Actualizar UI
+            updateUI();
+            showNotification(`Has fabricado: ${recipe.name}`);
+            
+            // Actualizar misiones de fabricación
+            for (const category in gameState.missions) {
+                gameState.missions[category].forEach(mission => {
+                    if (mission.type === 'craft' && !mission.completed) {
+                        mission.progress++;
+                        if (mission.progress >= mission.targetCount) {
+                            mission.progress = mission.targetCount;
+                            mission.completed = true;
+                            completeMission(mission);
+                        }
+                    }
+                });
+            }
+            updateMissionsUI();
+        }
+
+        // Aplicar efecto de fabricación
+        function applyCraftEffect(effect) {
+            switch(effect.type) {
+                case "detector_boost":
+                    gameState.tools.detector.range += effect.value;
+                    updateDetectorRange();
+                    showNotification(`¡Rango del detector aumentado en ${effect.value}m!`);
+                    break;
+                    
+                case "energy_boost":
+                    gameState.energy = Math.min(gameState.maxEnergy, gameState.energy + effect.value);
+                    updateEnergyUI();
+                    showNotification(`¡Energía recuperada en ${effect.value} puntos!`);
+                    break;
+                    
+                case "reveal_rare":
+                    revealRareMaterials(effect.value);
+                    break;
+            }
+        }
+
+        // Revelar materiales raros
+        function revealRareMaterials(duration) {
+            showNotification("¡Mapa del tesoro activado! Materiales raros revelados.");
+            
+            // Encontrar y destacar materiales raros en las zonas
+            for (const zone of gameState.zones) {
+                if (zone.discovered) {
+                    for (const material of zone.materials) {
+                        if (gameState.inventory[material.type].rarity === "rare" || 
+                            gameState.inventory[material.type].rarity === "epic" ||
+                            gameState.inventory[material.type].rarity === "legendary") {
+                            
+                            // Destacar material
+                            material.element.style.boxShadow = "0 0 20px #ffd700";
+                            material.element.style.animation = "pulse 0.5s infinite";
+                        }
+                    }
+                }
+            }
+            
+            // Después de la duración, quitar el efecto
+            setTimeout(() => {
+                for (const zone of gameState.zones) {
+                    for (const material of zone.materials) {
+                        material.element.style.boxShadow = "";
+                        material.element.style.animation = "pulse 2s infinite";
+                    }
+                }
+            }, duration * 1000);
+        }
+
+        // Construir estructura
+        function buildStructure(buildingKey) {
+            const building = gameState.buildings[buildingKey];
+            
+            // Verificar materiales
+            for (const material in building.requirements) {
+                if (gameState.inventory[material].count < building.requirements[material]) {
+                    showNotification(`No tienes suficiente ${gameState.inventory[material].name}`);
+                    return;
+                }
+            }
+            
+            // Consumir materiales
+            for (const material in building.requirements) {
+                gameState.inventory[material].count -= building.requirements[material];
+            }
+            
+            // Aumentar nivel del edificio
+            building.level++;
+            
+            // Colocar el edificio en la zona actual
+            if (gameState.currentZone && building.position === null) {
+                building.position = [...gameState.currentZone.center];
+                
+                // Crear marcador en el mapa
+                const buildingElement = document.createElement('div');
+                buildingElement.className = 'building';
+                buildingElement.innerHTML = building.icon;
+                buildingElement.title = building.name;
+                
+                // Posicionar en el centro de la zona
+                const point = elements.map.latLngToContainerPoint(building.position);
+                buildingElement.style.left = `${point.x}px`;
+                buildingElement.style.top = `${point.y}px`;
+                
+                document.getElementById('app').appendChild(buildingElement);
+                
+                // Guardar referencia
+                gameState.buildingsOnMap.push({
+                    element: buildingElement,
+                    type: buildingKey,
+                    position: building.position
+                });
+                
+                showNotification(`¡${building.name} construido en esta zona!`);
+            } else {
+                showNotification(`¡${building.name} mejorado al nivel ${building.level}!`);
+            }
+            
+            // Actualizar UI
+            updateUI();
+        }
+
+        // Mejorar herramienta
+        function upgradeTool(tool) {
+            const upgradeCost = gameState.tools[tool].upgradeCost;
+            
+            if (gameState.coins >= upgradeCost) {
+                gameState.coins -= upgradeCost;
+                gameState.tools[tool].level++;
+                
+                if (tool === 'detector') {
+                    gameState.tools.detector.range += 20;
+                    gameState.tools.detector.upgradeCost = Math.round(upgradeCost * 1.8);
+                    updateDetectorRange();
+                } else if (tool === 'bag') {
+                    gameState.tools.bag.capacity += 10;
+                    gameState.tools.bag.upgradeCost = Math.round(upgradeCost * 1.5);
+                } else if (tool === 'energy') {
+                    gameState.maxEnergy += 20;
+                    gameState.energy = gameState.maxEnergy;
+                    gameState.tools.energy.upgradeCost = Math.round(upgradeCost * 2);
+                    updateEnergyUI();
+                }
+                
+                // Actualizar UI
+                elements.coins.textContent = gameState.coins;
+                updateUI();
+                
+                showNotification(`¡${tool === 'detector' ? 'Detector' : (tool === 'bag' ? 'Bolsa' : 'Energía')} mejorado al nivel ${gameState.tools[tool].level}!`);
+            } else {
+                showNotification("No tienes suficientes monedas");
+            }
+        }
+
+        // Reclamar recompensa diaria
+        function claimDailyReward() {
+            const now = new Date();
+            const today = now.toDateString();
+            
+            // Verificar si ya se reclamó hoy
+            if (gameState.dailyReward.lastClaimed === today) {
+                showNotification("Ya reclamaste tu recompensa diaria hoy");
+                return;
+            }
+            
+            // Determinar recompensa basada en la racha
+            let reward = 50;
+            let xpReward = 25;
+            
+            if (gameState.dailyReward.streak > 0) {
+                reward += gameState.dailyReward.streak * 10;
+                xpReward += gameState.dailyReward.streak * 5;
+            }
+            
+            // Dar recompensa
+            gameState.coins += reward;
+            addXP(xpReward);
+            
+            // Actualizar racha
+            gameState.dailyReward.lastClaimed = today;
+            
+            // Verificar si es consecutive (menos de 48 horas desde la última vez)
+            const lastClaimed = new Date(gameState.dailyReward.lastClaimed);
+            const diffTime = Math.abs(now - lastClaimed);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            if (diffDays <= 1) {
+                gameState.dailyReward.streak++;
+            } else {
+                gameState.dailyReward.streak = 1;
+            }
+            
+            // Actualizar UI
+            elements.coins.textContent = gameState.coins;
+            
+            showNotification(`¡Recompensa diaria! ${reward} monedas y ${xpReward} XP. Racha: ${gameState.dailyReward.streak} días`);
+        }
+
+        // Mostrar notificación
+        function showNotification(message) {
+            elements.notification.textContent = message;
+            elements.notification.style.display = 'block';
+            
+            setTimeout(() => {
+                elements.notification.style.display = 'none';
+            }, 3000);
+        }
+
+        // Guardar estado del juego
+        function saveGame() {
+            const saveData = {
+                level: gameState.level,
+                xp: gameState.xp,
+                xpToNextLevel: gameState.xpToNextLevel,
+                coins: gameState.coins,
+                energy: gameState.energy,
+                maxEnergy: gameState.maxEnergy,
+                distanceTraveled: gameState.distanceTraveled,
+                inventory: gameState.inventory,
+                tools: gameState.tools,
+                craftingRecipes: gameState.craftingRecipes,
+                buildings: gameState.buildings,
+                missions: gameState.missions,
+                dailyReward: gameState.dailyReward,
+                lastEnergyUpdate: gameState.lastEnergyUpdate
+            };
+            
+            localStorage.setItem('geoCollectorSave', JSON.stringify(saveData));
+            gameState.lastSave = Date.now();
+        }
+
+        // Cargar estado del juego
+        function loadGame() {
+            const saveData = localStorage.getItem('geoCollectorSave');
+            
+            if (saveData) {
+                const data = JSON.parse(saveData);
+                
+                gameState.level = data.level || 1;
+                gameState.xp = data.xp || 0;
+                gameState.xpToNextLevel = data.xpToNextLevel || 100;
+                gameState.coins = data.coins || 100;
+                gameState.energy = data.energy || 100;
+                gameState.maxEnergy = data.maxEnergy || 100;
+                gameState.distanceTraveled = data.distanceTraveled || 0;
+                gameState.inventory = data.inventory || gameState.inventory;
+                gameState.tools = data.tools || gameState.tools;
+                gameState.craftingRecipes = data.craftingRecipes || gameState.craftingRecipes;
+                gameState.buildings = data.buildings || gameState.buildings;
+                gameState.missions = data.missions || gameState.missions;
+                gameState.dailyReward = data.dailyReward || gameState.dailyReward;
+                gameState.lastEnergyUpdate = data.lastEnergyUpdate || Date.now();
+                
+                // Actualizar UI
+                elements.level.textContent = gameState.level;
+                elements.distance.textContent = `${Math.round(gameState.distanceTraveled)}m`;
+                elements.coins.textContent = gameState.coins;
+                updateEnergyUI();
+                
+                const xpPercent = (gameState.xp / gameState.xpToNextLevel) * 100;
+                elements.xpProgress.style.width = `${xpPercent}%`;
+                
+                updateDetectorRange();
+                updateUI();
+                updateMissionsUI();
+                
+                showNotification("Partida cargada correctamente");
+            }
+        }
+
+        // Actualizar energía con el tiempo
+        function updateEnergyOverTime() {
+            const now = Date.now();
+            const elapsedMinutes = (now - gameState.lastEnergyUpdate) / 60000;
+            
+            if (elapsedMinutes > 0) {
+                const energyGain = elapsedMinutes * gameState.energyRefreshRate;
+                gameState.energy = Math.min(gameState.maxEnergy, gameState.energy + energyGain);
+                gameState.lastEnergyUpdate = now;
+                
+                updateEnergyUI();
+            }
+            
+            // Programar próxima actualización
+            setTimeout(updateEnergyOverTime, 60000); // Actualizar cada minuto
+        }
+
+        // Producir recursos de los edificios
+        function produceFromBuildings() {
+            const now = Date.now();
+            
+            for (const key in gameState.buildings) {
+                const building = gameState.buildings[key];
+                
+                if (building.level > 0 && building.position && building.production) {
+                    if (now - building.lastProduction >= building.productionInterval) {
+                        // Producir recursos
+                        for (const resource in building.production) {
+                            gameState.inventory[resource].count += building.production[resource];
+                        }
+                        
+                        building.lastProduction = now;
+                        showNotification(`¡${building.name} ha producido recursos!`);
+                        
+                        // Actualizar UI
+                        updateUI();
+                    }
+                }
+            }
+            
+            // Programar próxima actualización
+            setTimeout(produceFromBuildings, 60000); // Verificar cada minuto
+        }
+
+        // Verificar y activar eventos especiales
+        function checkForSpecialEvents() {
+            const now = Date.now();
+            
+            if (now >= gameState.events.nextEvent) {
+                // Activar evento
+                activateSpecialEvent();
+                
+                // Programar próximo evento (entre 1 y 3 horas)
+                gameState.events.nextEvent = now + (1 + Math.random() * 2) * 3600000;
+            }
+            
+            // Actualizar indicador de evento
+            elements.eventIndicator.style.display = gameState.events.active.length > 0 ? 'block' : 'none';
+            
+            // Programar próxima verificación
+            setTimeout(checkForSpecialEvents, 30000); // Verificar cada 30 segundos
+        }
+
+        // Activar evento especial
+        function activateSpecialEvent() {
+            const events = [
+                {
+                    name: "Fiebre del Oro",
+                    description: "¡Oro aparece con el doble de frecuencia por 10 minutos!",
+                    duration: 600000,
+                    effect: () => {
+                        showNotification("¡Fiebre del Oro! Oro aparece con más frecuencia");
+                        // Implementar lógica de aumento de aparición de oro
+                    },
+                    icon: "🥇"
+                },
+                {
+                    name: "Lluvia de Estrellas",
+                    description: "¡Encuentra materiales legendarios por 5 minutos!",
+                    duration: 300000,
+                    effect: () => {
+                        showNotification("¡Lluvia de Estrellas! Materiales legendarios disponibles");
+                        // Implementar lógica de aparición de materiales legendarios
+                    },
+                    icon: "🌠"
+                }
+            ];
+            
+            const event = events[Math.floor(Math.random() * events.length)];
+            gameState.events.active.push({
+                ...event,
+                endTime: Date.now() + event.duration
+            });
+            
+            event.effect();
+            showNotification(`¡Evento especial: ${event.name}! ${event.description}`);
+            
+            // Programar finalización del evento
+            setTimeout(() => {
+                gameState.events.active = gameState.events.active.filter(e => e.name !== event.name);
+                showNotification(`Evento ${event.name} ha terminado.`);
+            }, event.duration);
+        }
+
+        // Inicializar la aplicación
+        function initApp() {
+            initMap();
+            updateMissionsUI();
+            loadGame();
+            
+            // Iniciar actualización de energía
+            updateEnergyOverTime();
+            
+            // Iniciar producción de edificios
+            produceFromBuildings();
+            
+            // Iniciar verificación de eventos
+            checkForSpecialEvents();
+            
+            // Event listeners
+            elements.inventoryBtn.addEventListener('click', () => {
+                elements.inventoryPanel.style.display = 'block';
+                elements.overlayBackdrop.style.display = 'block';
+                updateUI();
+            });
+            
+            elements.missionsBtn.addEventListener('click', () => {
+                elements.missionsPanel.style.display = 'block';
+                elements.overlayBackdrop.style.display = 'block';
+                updateMissionsUI();
+            });
+            
+            elements.shopBtn.addEventListener('click', () => {
+                elements.shopPanel.style.display = 'block';
+                elements.overlayBackdrop.style.display = 'block';
+                updateUI();
+            });
+            
+            elements.craftBtn.addEventListener('click', () => {
+                elements.craftPanel.style.display = 'block';
+                elements.overlayBackdrop.style.display = 'block';
+                updateUI();
+            });
+            
+            elements.buildBtn.addEventListener('click', () => {
+                elements.buildPanel.style.display = 'block';
+                elements.overlayBackdrop.style.display = 'block';
+                updateUI();
+            });
+            
+            elements.closeInventory.addEventListener('click', () => {
+                elements.inventoryPanel.style.display = 'none';
+                elements.overlayBackdrop.style.display = 'none';
+                saveGame();
+            });
+            
+            elements.closeMissions.addEventListener('click', () => {
+                elements.missionsPanel.style.display = 'none';
+                elements.overlayBackdrop.style.display = 'none';
+                saveGame();
+            });
+            
+            elements.closeShop.addEventListener('click', () => {
+                elements.shopPanel.style.display = 'none';
+                elements.overlayBackdrop.style.display = 'none';
+                saveGame();
+            });
+            
+            elements.closeCraft.addEventListener('click', () => {
+                elements.craftPanel.style.display = 'none';
+                elements.overlayBackdrop.style.display = 'none';
+                saveGame();
+            });
+            
+            elements.closeBuild.addEventListener('click', () => {
+                elements.buildPanel.style.display = 'none';
+                elements.overlayBackdrop.style.display = 'none';
+                saveGame();
+            });
+            
+            elements.upgradeDetector.addEventListener('click', () => {
+                upgradeTool('detector');
+                saveGame();
+            });
+            
+            elements.upgradeBag.addEventListener('click', () => {
+                upgradeTool('bag');
+                saveGame();
+            });
+            
+            elements.upgradeEnergy.addEventListener('click', () => {
+                upgradeTool('energy');
+                saveGame();
+            });
+            
+            elements.overlayBackdrop.addEventListener('click', () => {
+                elements.inventoryPanel.style.display = 'none';
+                elements.missionsPanel.style.display = 'none';
+                elements.shopPanel.style.display = 'none';
+                elements.craftPanel.style.display = 'none';
+                elements.buildPanel.style.display = 'none';
+                elements.overlayBackdrop.style.display = 'none';
+                saveGame();
+            });
+            
+            elements.dailyRewardBtn.addEventListener('click', () => {
+                claimDailyReward();
+                saveGame();
+            });
+            
+            // Tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const tabName = tab.dataset.tab;
+                    
+                    // Desactivar todas las pestañas
+                    tab.parentElement.querySelectorAll('.tab').forEach(t => {
+                        t.classList.remove('active');
+                    });
+                    
+                    // Desactivar todos los contenidos
+                    tab.parentElement.parentElement.querySelectorAll('.tab-content').forEach(content => {
+                        content.classList.remove('active');
+                    });
+                    
+                    // Activar pestaña seleccionada
+                    tab.classList.add('active');
+                    
+                    // Activar contenido correspondiente
+                    document.getElementById(`${tabName}Tab`).classList.add('active');
+                });
+            });
+            
+            // Guardar automáticamente cada 30 segundos
+            setInterval(saveGame, 30000);
+            
+            // Actualizar UI inicial
+            updateUI();
+        }
+
+        // Iniciar cuando el DOM esté listo
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>
