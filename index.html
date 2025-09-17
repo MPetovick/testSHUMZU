@@ -3,105 +3,366 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SafeMesh Plus - Red Mesh con WebRTC</title>
+    <title>SafeMesh Plus Enterprise - Red Mesh Segura</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         :root {
-            --primary: #2c3e50;
-            --secondary: #3498db;
-            --accent: #e74c3c;
-            --light: #ecf0f1;
-            --dark: #2c3e50;
-            --success: #27ae60;
-            --warning: #f39c12;
+            --primary: #2563eb;
+            --secondary: #3b82f6;
+            --accent: #ef4444;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --dark: #1e293b;
+            --light: #f8fafc;
+            --sidebar: #0f172a;
+            --card: #ffffff;
+            --text: #334155;
+            --text-light: #64748b;
+            --border: #e2e8f0;
+        }
+
+        .dark-mode {
+            --primary: #3b82f6;
+            --secondary: #60a5fa;
+            --accent: #f87171;
+            --success: #34d399;
+            --warning: #fbbf24;
+            --dark: #0f172a;
+            --light: #1e293b;
+            --sidebar: #020617;
+            --card: #1e293b;
+            --text: #e2e8f0;
+            --text-light: #94a3b8;
+            --border: #334155;
         }
 
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
         }
 
         body {
-            background-color: #f5f5f5;
-            color: var(--dark);
+            background-color: var(--light);
+            color: var(--text);
             overflow: hidden;
+            transition: background-color 0.3s, color 0.3s;
         }
 
-        header {
+        #app {
+            display: grid;
+            grid-template-rows: 60px 1fr;
+            height: 100vh;
+        }
+
+        /* Header */
+        .header {
             background-color: var(--primary);
             color: white;
-            padding: 1rem;
-            text-align: center;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            padding: 0 1.5rem;
             display: flex;
+            align-items: center;
             justify-content: space-between;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+        }
+
+        .logo {
+            display: flex;
             align-items: center;
+            gap: 0.75rem;
+            font-weight: 700;
+            font-size: 1.25rem;
         }
 
-        .container {
+        .logo i {
+            font-size: 1.5rem;
+        }
+
+        .header-controls {
             display: flex;
-            height: calc(100vh - 60px);
-            max-width: 100%;
-        }
-
-        .main-content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-        }
-
-        #map {
-            flex: 1;
-            min-height: 300px;
-            z-index: 1;
-        }
-
-        .controls {
-            padding: 1rem;
-            background: white;
-            display: flex;
-            flex-wrap: wrap;
+            align-items: center;
             gap: 1rem;
-            align-items: center;
-            box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
         }
 
-        .sidebar {
-            width: 320px;
-            background: white;
-            border-left: 1px solid #ddd;
+        .btn-icon {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.25rem;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 8px;
+            transition: background-color 0.2s;
             display: flex;
-            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+        }
+
+        .btn-icon:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .connected {
+            background-color: var(--success);
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3);
+        }
+
+        .disconnected {
+            background-color: var(--accent);
+        }
+
+        .connecting {
+            background-color: var(--warning);
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.3);
+        }
+
+        /* Main Layout */
+        .main-container {
+            display: grid;
+            grid-template-columns: 300px 1fr 380px;
+            height: 100%;
             overflow: hidden;
         }
 
-        .sidebar-tabs {
+        /* Sidebar */
+        .sidebar {
+            background-color: var(--sidebar);
+            color: white;
             display: flex;
-            border-bottom: 1px solid #ddd;
+            flex-direction: column;
+            border-right: 1px solid var(--border);
+            overflow: hidden;
         }
 
-        .sidebar-tab {
-            flex: 1;
-            padding: 0.8rem;
-            text-align: center;
-            cursor: pointer;
-            background: #f8f9fa;
-            transition: all 0.3s;
+        .sidebar-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        .sidebar-tab.active {
-            background: white;
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
             font-weight: bold;
-            border-bottom: 2px solid var(--secondary);
+        }
+
+        .user-info {
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .user-name {
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .user-id {
+            font-size: 0.75rem;
+            opacity: 0.7;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .sidebar-content {
             flex: 1;
             overflow-y: auto;
             padding: 1rem;
+        }
+
+        .section-title {
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 1rem;
+            opacity: 0.7;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .action-btn {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+
+        .action-btn:hover {
+            opacity: 1;
+        }
+
+        .user-list, .notes-list {
+            list-style: none;
+        }
+
+        .user-item, .note-item {
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .user-item:hover, .note-item:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .user-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .user-details {
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .user-displayname {
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .user-distance {
+            font-size: 0.75rem;
+            opacity: 0.7;
+        }
+
+        .note-title {
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .note-preview {
+            font-size: 0.75rem;
+            opacity: 0.7;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Map */
+        .map-container {
+            position: relative;
+            overflow: hidden;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        .map-controls {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            z-index: 1000;
+        }
+
+        .map-btn {
+            background-color: var(--card);
+            border: none;
+            border-radius: 8px;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            color: var(--text);
+            transition: all 0.2s;
+        }
+
+        .map-btn:hover {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        /* Panel lateral derecho */
+        .right-panel {
+            background-color: var(--card);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .panel-tab {
+            flex: 1;
+            padding: 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .panel-tab.active {
+            border-bottom: 2px solid var(--primary);
+            color: var(--primary);
+        }
+
+        .panel-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
         }
 
         .tab-pane {
@@ -112,118 +373,41 @@
             display: block;
         }
 
-        button {
-            padding: 0.7rem 1.5rem;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: all 0.3s ease;
-        }
-
-        .btn-primary {
-            background-color: var(--secondary);
-            color: white;
-        }
-
-        .btn-emergency {
-            background-color: var(--accent);
-            color: white;
-            animation: pulse 1.5s infinite;
-        }
-
-        .btn-success {
-            background-color: var(--success);
-            color: white;
-        }
-
-        .status {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            margin-left: auto;
-        }
-
-        .status-indicator {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-right: 8px;
-        }
-
-        .connected {
-            background-color: var(--success);
-            box-shadow: 0 0 8px var(--success);
-        }
-
-        .disconnected {
-            background-color: var(--accent);
-        }
-
-        .connecting {
-            background-color: var(--warning);
-            box-shadow: 0 0 8px var(--warning);
-        }
-
-        .user-list {
-            list-style: none;
-        }
-
-        .user-item {
-            display: flex;
-            align-items: center;
-            padding: 0.8rem;
-            border-bottom: 1px solid #eee;
-            cursor: pointer;
-        }
-
-        .user-item:hover {
-            background-color: #f9f9f9;
-        }
-
-        .user-color {
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            margin-right: 10px;
-        }
-
-        .user-name {
-            flex: 1;
-        }
-
-        .user-distance {
-            color: #777;
-            font-size: 0.9rem;
-        }
-
         .chat-messages {
-            height: 300px;
+            height: calc(100% - 120px);
             overflow-y: auto;
-            border: 1px solid #eee;
-            border-radius: 4px;
-            padding: 0.8rem;
             margin-bottom: 1rem;
-            background: #fafafa;
         }
 
         .message {
-            margin-bottom: 0.8rem;
-            padding: 0.5rem;
-            border-radius: 4px;
-            background: white;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            border-radius: 8px;
+            background-color: var(--light);
+            max-width: 80%;
+        }
+
+        .message.own {
+            margin-left: auto;
+            background-color: var(--primary);
+            color: white;
         }
 
         .message-sender {
-            font-weight: bold;
-            color: var(--secondary);
+            font-weight: 600;
+            font-size: 0.875rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .message-content {
+            font-size: 0.95rem;
         }
 
         .message-time {
-            font-size: 0.7rem;
-            color: #777;
-            margin-left: 0.5rem;
+            font-size: 0.75rem;
+            opacity: 0.7;
+            text-align: right;
+            margin-top: 0.25rem;
         }
 
         .chat-input {
@@ -233,167 +417,227 @@
 
         .chat-input input {
             flex: 1;
-            padding: 0.7rem;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background-color: var(--light);
+            color: var(--text);
         }
 
-        .note-form {
+        .send-btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            width: 46px;
             display: flex;
-            flex-direction: column;
-            gap: 0.8rem;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        /* Connect Panel */
+        .connect-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .input-group {
             margin-bottom: 1rem;
         }
 
-        .note-form input,
-        .note-form textarea {
-            padding: 0.7rem;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+        .input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            font-size: 0.875rem;
         }
 
-        .note-form textarea {
-            min-height: 100px;
-            resize: vertical;
+        .input-with-button {
+            display: flex;
+            gap: 0.5rem;
         }
 
-        .notes-list {
-            list-style: none;
-        }
-
-        .note-item {
-            padding: 0.8rem;
-            border-bottom: 1px solid #eee;
-            cursor: pointer;
-        }
-
-        .note-item:hover {
-            background-color: #f9f9f9;
-        }
-
-        .note-title {
-            font-weight: bold;
-            margin-bottom: 0.3rem;
-        }
-
-        .note-content {
-            font-size: 0.9rem;
-            color: #555;
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.5);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .modal-content {
-            background: white;
-            padding: 1.5rem;
+        .input-with-button input {
+            flex: 1;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
             border-radius: 8px;
-            width: 90%;
-            max-width: 500px;
-            max-height: 80vh;
-            overflow-y: auto;
+            background-color: var(--light);
+            color: var(--text);
         }
 
-        .close-modal {
-            float: right;
-            font-size: 1.5rem;
+        .input-with-button button {
+            white-space: nowrap;
+        }
+
+        .btn {
+            padding: 0.75rem 1.25rem;
+            border: none;
+            border-radius: 8px;
             cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
         }
 
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.7; }
-            100% { opacity: 1; }
-        }
-
-        @keyframes vibrate {
-            0% { transform: translate(0); }
-            20% { transform: translate(-2px, 2px); }
-            40% { transform: translate(-2px, -2px); }
-            60% { transform: translate(2px, 2px); }
-            80% { transform: translate(2px, -2px); }
-            100% { transform: translate(0); }
-        }
-
-        .vibrate {
-            animation: vibrate 0.5s linear infinite;
-        }
-
-        .notification {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            padding: 1rem;
-            background: var(--primary);
+        .btn-primary {
+            background-color: var(--primary);
             color: white;
-            border-radius: 4px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            display: none;
-            z-index: 1000;
         }
 
-        .connection-info {
-            background: #f8f9fa;
-            padding: 0.5rem;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            margin-top: 0.5rem;
-            display: none;
+        .btn-primary:hover {
+            background-color: var(--secondary);
         }
 
-        @media (max-width: 768px) {
-            .container {
-                flex-direction: column;
-            }
-
-            .sidebar {
-                width: 100%;
-                height: 300px;
-                border-left: none;
-                border-top: 1px solid #ddd;
-            }
-
-            .controls {
-                flex-direction: column;
-                align-items: stretch;
-            }
-
-            .status {
-                margin-left: 0;
-            }
+        .btn-success {
+            background-color: var(--success);
+            color: white;
         }
 
-        /* Modal improvements */
+        .btn-outline {
+            background-color: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        .btn-outline:hover {
+            background-color: var(--light);
+        }
+
+        .btn-sm {
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+        }
+
+        .discovery-section {
+            margin-top: 1.5rem;
+        }
+
+        .discovery-list {
+            list-style: none;
+            margin-top: 1rem;
+        }
+
+        .discovery-item {
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            background-color: var(--light);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .discovery-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        /* Notes Panel */
+        .notes-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .note-card {
+            background-color: var(--light);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .note-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .note-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+
+        .note-card-title {
+            font-weight: 600;
+        }
+
+        .note-card-distance {
+            font-size: 0.75rem;
+            opacity: 0.7;
+        }
+
+        .note-card-content {
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .note-card-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            opacity: 0.7;
+        }
+
+        /* Modal */
         .modal-overlay {
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background-color: rgba(0, 0, 0, 0.7);
+            background-color: rgba(0, 0, 0, 0.5);
             display: none;
             justify-content: center;
             align-items: center;
-            z-index: 1000;
+            z-index: 2000;
+            padding: 1rem;
         }
 
         .modal-overlay.active {
             display: flex;
         }
 
-        .modal-content h3 {
-            margin-bottom: 1.5rem;
-            color: var(--primary);
+        .modal-content {
+            background-color: var(--card);
+            border-radius: 12px;
+            width: 100%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .modal-title {
+            font-weight: 600;
+            font-size: 1.25rem;
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-light);
+        }
+
+        .modal-body {
+            padding: 1.5rem;
         }
 
         .form-group {
@@ -406,126 +650,481 @@
             font-weight: 500;
         }
 
-        .form-group input {
+        .form-group input,
+        .form-group textarea {
             width: 100%;
             padding: 0.75rem;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 1rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background-color: var(--light);
+            color: var(--text);
         }
 
-        .button-group {
+        .form-group textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .modal-footer {
+            padding: 1.5rem;
+            border-top: 1px solid var(--border);
             display: flex;
             justify-content: flex-end;
-            gap: 1rem;
+            gap: 0.75rem;
         }
 
-        .btn-secondary {
-            background-color: #e0e0e0;
-            color: #333;
+        /* Notification */
+        .notification {
+            position: fixed;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            padding: 1rem 1.5rem;
+            background-color: var(--dark);
+            color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            display: none;
+            z-index: 2000;
+            max-width: 350px;
+            animation: slideIn 0.3s ease;
         }
 
-        .btn-secondary:hover {
-            background-color: #d0d0d0;
+        .notification.success {
+            background-color: var(--success);
+        }
+
+        .notification.error {
+            background-color: var(--accent);
+        }
+
+        .notification.warning {
+            background-color: var(--warning);
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* Emergency button */
+        .emergency-btn {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 1000;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 12px rgba(239, 68, 68, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+            }
+        }
+
+        /* Context menu */
+        .context-menu {
+            position: absolute;
+            background-color: var(--card);
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            display: none;
+            overflow: hidden;
+            min-width: 180px;
+            border: 1px solid var(--border);
+        }
+
+        .context-menu-item {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.9rem;
+        }
+
+        .context-menu-item:hover {
+            background-color: var(--light);
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .main-container {
+                grid-template-columns: 280px 1fr;
+            }
+            .right-panel {
+                position: fixed;
+                top: 60px;
+                right: 0;
+                bottom: 0;
+                width: 380px;
+                transform: translateX(100%);
+                transition: transform 0.3s;
+                z-index: 100;
+            }
+            .right-panel.active {
+                transform: translateX(0);
+            }
+            .panel-toggle {
+                display: flex;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-container {
+                grid-template-columns: 1fr;
+            }
+            .sidebar {
+                position: fixed;
+                top: 60px;
+                left: 0;
+                bottom: 0;
+                width: 280px;
+                transform: translateX(-100%);
+                transition: transform 0.3s;
+                z-index: 100;
+            }
+            .sidebar.active {
+                transform: translateX(0);
+            }
+            .mobile-overlay {
+                position: fixed;
+                top: 60px;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-color: rgba(0, 0, 0, 0.5);
+                display: none;
+                z-index: 90;
+            }
+            .mobile-overlay.active {
+                display: block;
+            }
+        }
+
+        /* Utilities */
+        .hidden {
+            display: none !important;
+        }
+
+        .text-sm {
+            font-size: 0.875rem;
+        }
+
+        .text-xs {
+            font-size: 0.75rem;
+        }
+
+        .opacity-70 {
+            opacity: 0.7;
+        }
+
+        .mt-2 {
+            margin-top: 0.5rem;
+        }
+
+        .mb-2 {
+            margin-bottom: 0.5rem;
+        }
+
+        .ml-auto {
+            margin-left: auto;
+        }
+
+        .flex {
+            display: flex;
+        }
+
+        .items-center {
+            align-items: center;
+        }
+
+        .justify-between {
+            justify-content: space-between;
         }
     </style>
 </head>
 <body>
-    <!-- Modal de configuración inicial -->
-    <div id="configModal" class="modal-overlay">
-        <div class="modal-content">
-            <h3>Configuración de SafeMesh Plus</h3>
-            <div class="form-group">
-                <label for="userID">Tu ID de usuario</label>
-                <input type="text" id="userID" placeholder="Introduce tu ID o genera uno aleatorio">
+    <div id="app">
+        <header class="header">
+            <div class="logo">
+                <i class="fas fa-network-wired"></i>
+                <span>SafeMesh Plus</span>
             </div>
-            <div class="button-group">
-                <button id="generateID" class="btn-secondary">Generar ID</button>
-                <button id="saveConfig" class="btn-primary">Guardar</button>
-            </div>
-        </div>
-    </div>
-
-    <header>
-        <h1>SafeMesh Plus</h1>
-        <div class="status">
-            <div id="statusIndicator" class="status-indicator disconnected"></div>
-            <span id="statusText">Desconectado</span>
-        </div>
-    </header>
-
-    <div class="container">
-        <div class="main-content">
-            <div id="map"></div>
-
-            <div class="controls">
-                <button id="toggleMesh" class="btn-primary">Activar Red Mesh</button>
-                <button id="emergencyBtn" class="btn-emergency">Alerta de Emergencia</button>
-                <button id="addNoteBtn" class="btn-success">Añadir Nota</button>
-                <div class="connection-info" id="connectionInfo">
-                    ID: <span id="peerId"></span>
+            <div class="header-controls">
+                <button class="btn-icon" id="toggleTheme" title="Cambiar tema">
+                    <i class="fas fa-moon"></i>
+                </button>
+                <button class="btn-icon" id="sidebarToggle" title="Menú">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="status">
+                    <div id="statusIndicator" class="status-indicator disconnected"></div>
+                    <span id="statusText">Desconectado</span>
                 </div>
             </div>
-        </div>
+        </header>
 
-        <div class="sidebar">
-            <div class="sidebar-tabs">
-                <div class="sidebar-tab active" data-tab="users">Usuarios</div>
-                <div class="sidebar-tab" data-tab="chat">Chat</div>
-                <div class="sidebar-tab" data-tab="notes">Notas</div>
-            </div>
-
-            <div class="sidebar-content">
-                <div class="tab-pane active" id="users-tab">
-                    <h3>Usuarios Conectados</h3>
-                    <ul id="usersList" class="user-list"></ul>
-                </div>
-
-                <div class="tab-pane" id="chat-tab">
-                    <h3>Chat de Grupo</h3>
-                    <div id="chatMessages" class="chat-messages"></div>
-                    <div class="chat-input">
-                        <input type="text" id="messageInput" placeholder="Escribe un mensaje...">
-                        <button id="sendMessageBtn">Enviar</button>
+        <div class="main-container">
+            <aside class="sidebar" id="sidebar">
+                <div class="sidebar-header">
+                    <div class="user-profile">
+                        <div class="user-avatar" id="userAvatar">U</div>
+                        <div class="user-info">
+                            <div class="user-name" id="userName">Usuario</div>
+                            <div class="user-id" id="userId">ID: No configurado</div>
+                        </div>
                     </div>
                 </div>
+                <div class="sidebar-content">
+                    <div class="section-title">
+                        <span>Usuarios cercanos</span>
+                        <button class="action-btn" id="refreshUsers">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                    <ul class="user-list" id="usersList">
+                        <li class="user-item">
+                            <div class="user-color" style="background-color: #e74c3c;"></div>
+                            <div class="user-details">
+                                <div class="user-displayname">Cargando...</div>
+                                <div class="user-distance">Conectando</div>
+                            </div>
+                        </li>
+                    </ul>
 
-                <div class="tab-pane" id="notes-tab">
-                    <h3>Notas de Ubicación</h3>
-                    <button id="loadNotesBtn" class="btn-primary">Cargar Notas Cercanas</button>
-                    <ul id="notesList" class="notes-list"></ul>
+                    <div class="section-title mt-2">
+                        <span>Notas recientes</span>
+                        <button class="action-btn" id="refreshNotes">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                    <ul class="notes-list" id="notesList">
+                        <li class="note-item">
+                            <i class="fas fa-sticky-note opacity-70"></i>
+                            <div class="user-details">
+                                <div class="note-title">Cargando...</div>
+                                <div class="note-preview">No hay notas disponibles</div>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </aside>
+
+            <main class="map-container">
+                <div id="map"></div>
+                <div class="map-controls">
+                    <button class="map-btn" id="locateMe" title="Mi ubicación">
+                        <i class="fas fa-location-arrow"></i>
+                    </button>
+                    <button class="map-btn" id="zoomIn" title="Acercar">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                    <button class="map-btn" id="zoomOut" title="Alejar">
+                        <i class="fas fa-minus"></i>
+                    </button>
+                </div>
+            </main>
+
+            <div class="right-panel" id="rightPanel">
+                <div class="panel-tabs">
+                    <div class="panel-tab active" data-tab="chat">
+                        <i class="fas fa-comments"></i>
+                        <span>Chat</span>
+                    </div>
+                    <div class="panel-tab" data-tab="connect">
+                        <i class="fas fa-wifi"></i>
+                        <span>Conexiones</span>
+                    </div>
+                    <div class="panel-tab" data-tab="notes">
+                        <i class="fas fa-sticky-note"></i>
+                        <span>Notas</span>
+                    </div>
+                </div>
+                <div class="panel-content">
+                    <div class="tab-pane active" id="chat-tab">
+                        <div class="chat-messages" id="chatMessages">
+                            <div class="message">
+                                <div class="message-sender">Sistema</div>
+                                <div class="message-content">Bienvenido a SafeMesh Plus. Los mensajes están encriptados de extremo a extremo.</div>
+                                <div class="message-time">Ahora</div>
+                            </div>
+                        </div>
+                        <div class="chat-input">
+                            <input type="text" id="messageInput" placeholder="Escribe un mensaje...">
+                            <button class="send-btn" id="sendMessageBtn">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane" id="connect-tab">
+                        <div class="connect-section">
+                            <h3 class="mb-2">Conectar con usuario</h3>
+                            <div class="input-group">
+                                <label>ID de usuario</label>
+                                <div class="input-with-button">
+                                    <input type="text" id="remotePeerId" placeholder="Ingresa el ID del usuario">
+                                    <button class="btn btn-primary btn-sm" id="connectToPeerBtn">
+                                        <i class="fas fa-link"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm">Tu ID: <strong id="myPeerId">No disponible</strong></span>
+                                <button class="btn btn-outline btn-sm" id="copyPeerIdBtn">
+                                    <i class="fas fa-copy"></i>
+                                    Copiar
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="discovery-section">
+                            <h3 class="mb-2">Usuarios descubiertos</h3>
+                            <p class="text-sm opacity-70 mb-2">Usuarios cercanos detectados automáticamente</p>
+                            <ul class="discovery-list" id="discoveryList">
+                                <li class="discovery-item">
+                                    <div class="discovery-info">
+                                        <div class="user-color" style="background-color: #3498db;"></div>
+                                        <span>Usuario123 (25m)</span>
+                                    </div>
+                                    <button class="btn btn-success btn-sm">
+                                        <i class="fas fa-plus"></i>
+                                        Conectar
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane" id="notes-tab">
+                        <div class="notes-actions">
+                            <button class="btn btn-primary" id="addNoteBtn">
+                                <i class="fas fa-plus"></i>
+                                Nueva nota
+                            </button>
+                            <button class="btn btn-outline" id="loadNotesBtn">
+                                <i class="fas fa-sync-alt"></i>
+                                Actualizar
+                            </button>
+                        </div>
+                        <div id="notesContainer">
+                            <div class="note-card">
+                                <div class="note-card-header">
+                                    <div class="note-card-title">Ejemplo de nota</div>
+                                    <div class="note-card-distance">125m</div>
+                                </div>
+                                <div class="note-card-content">
+                                    Esta es una nota de ejemplo que se muestra en la interfaz.
+                                </div>
+                                <div class="note-card-footer">
+                                    <span>Por: Usuario123</span>
+                                    <span>Hace 2h</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mobile-overlay" id="mobileOverlay"></div>
+        </div>
+
+        <button class="emergency-btn" id="emergencyBtn" title="Alerta de emergencia">
+            <i class="fas fa-bell"></i>
+        </button>
+
+        <div class="modal-overlay" id="configModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title">Configuración de SafeMesh</h2>
+                    <button class="close-modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="userNameInput">Nombre de usuario</label>
+                        <input type="text" id="userNameInput" placeholder="Ingresa tu nombre">
+                    </div>
+                    <div class="form-group">
+                        <label for="userIDInput">ID de usuario (opcional)</label>
+                        <input type="text" id="userIDInput" placeholder="O deja en blanco para generar automáticamente">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline" id="generateIDBtn">Generar ID</button>
+                    <button class="btn btn-primary" id="saveConfigBtn">Guardar</button>
                 </div>
             </div>
         </div>
-    </div>
 
-    <div id="noteModal" class="modal">
-        <div class="modal-content">
-            <span class="close-modal">&times;</span>
-            <h3>Añadir Nota de Ubicación</h3>
-            <form id="noteForm" class="note-form">
-                <input type="text" id="noteTitle" placeholder="Título de la nota" required>
-                <textarea id="noteContent" placeholder="Contenido de la nota" required></textarea>
-                <button type="submit" class="btn-primary">Guardar Nota</button>
-            </form>
-        </div>
-    </div>
-
-    <div id="connectModal" class="modal">
-        <div class="modal-content">
-            <span class="close-modal">&times;</span>
-            <h3>Conectar con otros usuarios</h3>
-            <p>Para conectar con otros usuarios, comparte tu ID o ingresa el ID de otra persona:</p>
-            <div class="note-form">
-                <input type="text" id="remotePeerId" placeholder="ID del usuario a conectar">
-                <button id="connectToPeerBtn" class="btn-primary">Conectar</button>
-                <button id="copyPeerIdBtn" class="btn-success">Copiar mi ID</button>
+        <div class="modal-overlay" id="noteModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title">Crear nueva nota</h2>
+                    <button class="close-modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="noteTitleInput">Título de la nota</label>
+                        <input type="text" id="noteTitleInput" placeholder="Ingresa un título">
+                    </div>
+                    <div class="form-group">
+                        <label for="noteContentInput">Contenido</label>
+                        <textarea id="noteContentInput" placeholder="Escribe el contenido de tu nota"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline" id="cancelNoteBtn">Cancelar</button>
+                    <button class="btn btn-primary" id="saveNoteBtn">Guardar nota</button>
+                </div>
             </div>
-            <p>Tu ID: <strong id="myPeerId"></strong></p>
+        </div>
+
+        <div class="notification" id="notification"></div>
+
+        <div class="context-menu" id="contextMenu">
+            <div class="context-menu-item" data-action="center">
+                <i class="fas fa-map-marker-alt"></i>
+                <span>Centrar en mapa</span>
+            </div>
+            <div class="context-menu-item" data-action="message">
+                <i class="fas fa-comment"></i>
+                <span>Enviar mensaje</span>
+            </div>
+            <div class="context-menu-item" data-action="info">
+                <i class="fas fa-info-circle"></i>
+                <span>Información</span>
+            </div>
+            <div class="context-menu-item" data-action="disconnect">
+                <i class="fas fa-unlink"></i>
+                <span>Desconectar</span>
+            </div>
         </div>
     </div>
-
-    <div id="notification" class="notification"></div>
 
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script>
@@ -539,13 +1138,23 @@
                 config: {
                     iceServers: [
                         { urls: 'stun:stun.l.google.com:19302' },
-                        { urls: 'stun:stun1.l.google.com:19302' }
+                        { urls: 'stun:stun1.l.google.com:19302' },
+                        { urls: 'stun:stun2.l.google.com:19302' },
+                        { 
+                            urls: 'turn:global.turn.twilio.com:3478',
+                            username: 'username', // En producción, usar credenciales reales
+                            credential: 'credential'
+                        }
                     ]
                 }
             },
             proximityAlertDistance: 100, // metros
             updateInterval: 5000, // ms
-            noteVisibilityDistance: 500 // metros
+            noteVisibilityDistance: 500, // metros
+            maxFileSize: 10 * 1024 * 1024, // 10MB
+            reconnectBaseDelay: 1000,
+            reconnectMaxDelay: 30000,
+            locationUpdateThrottle: 2000
         };
 
         const state = {
@@ -555,10 +1164,17 @@
             dataChannels: new Map(),
             users: new Map(),
             notes: [],
+            files: [],
             currentUser: null,
             map: null,
             userMarker: null,
-            watchId: null
+            watchId: null,
+            lastLocationUpdate: 0,
+            reconnectAttempts: 0,
+            encryptionKey: null,
+            db: null,
+            online: navigator.onLine,
+            darkMode: localStorage.getItem('darkMode') === 'true'
         };
 
         // Colores para usuarios
@@ -569,145 +1185,254 @@
 
         // Inicialización cuando el DOM está listo
         document.addEventListener('DOMContentLoaded', function() {
+            // Inicializar tema
+            if (state.darkMode) {
+                document.body.classList.add('dark-mode');
+                document.getElementById('toggleTheme').innerHTML = '<i class="fas fa-sun"></i>';
+            }
+
+            // Inicializar base de datos IndexedDB
+            initDatabase();
+
+            // Configurar detección de estado de conexión
+            setupConnectionMonitoring();
+
             // Elementos de la UI
-            const toggleMeshBtn = document.getElementById('toggleMesh');
-            const emergencyBtn = document.getElementById('emergencyBtn');
-            const addNoteBtn = document.getElementById('addNoteBtn');
+            const toggleThemeBtn = document.getElementById('toggleTheme');
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const sidebar = document.getElementById('sidebar');
+            const mobileOverlay = document.getElementById('mobileOverlay');
             const statusIndicator = document.getElementById('statusIndicator');
             const statusText = document.getElementById('statusText');
+            const userAvatar = document.getElementById('userAvatar');
+            const userName = document.getElementById('userName');
+            const userId = document.getElementById('userId');
             const usersList = document.getElementById('usersList');
+            const notesList = document.getElementById('notesList');
             const chatMessages = document.getElementById('chatMessages');
             const messageInput = document.getElementById('messageInput');
             const sendMessageBtn = document.getElementById('sendMessageBtn');
-            const notesList = document.getElementById('notesList');
-            const noteModal = document.getElementById('noteModal');
-            const noteForm = document.getElementById('noteForm');
-            const closeModal = document.querySelectorAll('.close-modal');
-            const sidebarTabs = document.querySelectorAll('.sidebar-tab');
+            const panelTabs = document.querySelectorAll('.panel-tab');
             const tabPanes = document.querySelectorAll('.tab-pane');
             const notification = document.getElementById('notification');
-            const connectModal = document.getElementById('connectModal');
             const remotePeerIdInput = document.getElementById('remotePeerId');
             const connectToPeerBtn = document.getElementById('connectToPeerBtn');
-            const copyPeerIdBtn = document.getElementById('copyPeerIdBtn');
             const myPeerIdSpan = document.getElementById('myPeerId');
-            const peerIdSpan = document.getElementById('peerId');
-            const connectionInfo = document.getElementById('connectionInfo');
+            const copyPeerIdBtn = document.getElementById('copyPeerIdBtn');
+            const discoveryList = document.getElementById('discoveryList');
+            const addNoteBtn = document.getElementById('addNoteBtn');
             const loadNotesBtn = document.getElementById('loadNotesBtn');
+            const notesContainer = document.getElementById('notesContainer');
+            const emergencyBtn = document.getElementById('emergencyBtn');
+            const locateMeBtn = document.getElementById('locateMe');
+            const zoomInBtn = document.getElementById('zoomIn');
+            const zoomOutBtn = document.getElementById('zoomOut');
+            const refreshUsersBtn = document.getElementById('refreshUsers');
+            const refreshNotesBtn = document.getElementById('refreshNotes');
+            const contextMenu = document.getElementById('contextMenu');
 
             // Elementos del modal de configuración
-            const configModalOverlay = document.getElementById('configModal');
-            const userIDInput = document.getElementById('userID');
-            const generateIDButton = document.getElementById('generateID');
-            const saveConfigButton = document.getElementById('saveConfig');
+            const configModal = document.getElementById('configModal');
+            const userNameInput = document.getElementById('userNameInput');
+            const userIDInput = document.getElementById('userIDInput');
+            const generateIDBtn = document.getElementById('generateIDBtn');
+            const saveConfigBtn = document.getElementById('saveConfigBtn');
+            const closeModalButtons = document.querySelectorAll('.close-modal');
 
-            let userId = localStorage.getItem('safemesh_userid');
+            // Elementos del modal de nota
+            const noteModal = document.getElementById('noteModal');
+            const noteTitleInput = document.getElementById('noteTitleInput');
+            const noteContentInput = document.getElementById('noteContentInput');
+            const cancelNoteBtn = document.getElementById('cancelNoteBtn');
+            const saveNoteBtn = document.getElementById('saveNoteBtn');
+
+            // Verificar si ya hay configuración guardada
+            const savedUser = localStorage.getItem('safemesh_user');
+            if (savedUser) {
+                const userData = JSON.parse(savedUser);
+                initializeAppWithUser(userData);
+            } else {
+                showModal(configModal);
+            }
 
             // Inicializar mapa
             initMap();
 
-            // Verificar si ya hay un ID guardado
-            if (userId) {
-                initializeAppWithID(userId);
-            } else {
-                showConfigModal();
-            }
+            // Configurar event listeners
+            toggleThemeBtn.addEventListener('click', toggleDarkMode);
+            sidebarToggle.addEventListener('click', toggleSidebar);
+            mobileOverlay.addEventListener('click', closeSidebar);
+            panelTabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const tabName = tab.getAttribute('data-tab');
+                    switchTab(tabName);
+                });
+            });
 
-            // Event listeners para modal de configuración
-            generateIDButton.addEventListener('click', generateRandomID);
-            saveConfigButton.addEventListener('click', saveConfiguration);
-
-            // Configurar event listeners generales
-            toggleMeshBtn.addEventListener('click', toggleMeshNetwork);
-            emergencyBtn.addEventListener('click', sendEmergencyAlert);
-            addNoteBtn.addEventListener('click', showNoteModal);
             sendMessageBtn.addEventListener('click', sendChatMessage);
-            messageInput.addEventListener('keypress', function(e) {
+            messageInput.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') sendChatMessage();
-            });
-
-            closeModal.forEach(cm => {
-                cm.addEventListener('click', function() {
-                    const parentModal = this.closest('.modal');
-                    if (parentModal) parentModal.style.display = 'none';
-                });
-            });
-
-            noteForm.addEventListener('submit', function(e) {
-                e.preventDefault();
-                saveNote();
-            });
-
-            sidebarTabs.forEach(tab => {
-                tab.addEventListener('click', function() {
-                    const tabName = this.getAttribute('data-tab');
-
-                    // Actualizar pestañas activas
-                    sidebarTabs.forEach(t => t.classList.remove('active'));
-                    tabPanes.forEach(p => p.classList.remove('active'));
-
-                    this.classList.add('active');
-                    document.getElementById(`${tabName}-tab`).classList.add('active');
-                });
             });
 
             connectToPeerBtn.addEventListener('click', connectToPeer);
             copyPeerIdBtn.addEventListener('click', copyPeerId);
+            addNoteBtn.addEventListener('click', () => showModal(noteModal));
             loadNotesBtn.addEventListener('click', loadNearbyNotes);
+            emergencyBtn.addEventListener('click', sendEmergencyAlert);
+            locateMeBtn.addEventListener('click', centerMapOnUser);
+            zoomInBtn.addEventListener('click', () => state.map.zoomIn());
+            zoomOutBtn.addEventListener('click', () => state.map.zoomOut());
+            refreshUsersBtn.addEventListener('click', refreshUsers);
+            refreshNotesBtn.addEventListener('click', refreshNotes);
 
-            // Cerrar modal al hacer clic fuera
-            window.addEventListener('click', function(e) {
-                if (e.target === noteModal) {
-                    noteModal.style.display = 'none';
-                } else if (e.target === connectModal) {
-                    connectModal.style.display = 'none';
-                } else if (e.target === configModalOverlay) {
-                    configModalOverlay.classList.remove('active');
+            // Modales
+            generateIDBtn.addEventListener('click', generateRandomID);
+            saveConfigBtn.addEventListener('click', saveConfiguration);
+            cancelNoteBtn.addEventListener('click', () => hideModal(noteModal));
+            saveNoteBtn.addEventListener('click', saveNote);
+            closeModalButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    hideModal(configModal);
+                    hideModal(noteModal);
+                });
+            });
+
+            // Context menu
+            document.addEventListener('contextmenu', (e) => {
+                if (e.target.closest('.user-item')) {
+                    e.preventDefault();
+                    showContextMenu(e, e.target.closest('.user-item'));
                 }
             });
 
-            // Funciones de configuración inicial
-            function showConfigModal() {
-                configModalOverlay.classList.add('active');
-            }
+            document.addEventListener('click', () => {
+                contextMenu.style.display = 'none';
+            });
 
-            function hideConfigModal() {
-                configModalOverlay.classList.remove('active');
-            }
-
-            function generateRandomID() {
-                const randomID = 'user_' + Math.random().toString(36).substr(2, 9);
-                userIDInput.value = randomID;
-            }
-
-            function saveConfiguration() {
-                const id = userIDInput.value.trim();
-                if (!id) {
-                    showNotification('Por favor, introduce un ID válido', 'error');
-                    return;
+            // Funciones de UI
+            function toggleDarkMode() {
+                state.darkMode = !state.darkMode;
+                localStorage.setItem('darkMode', state.darkMode);
+                
+                if (state.darkMode) {
+                    document.body.classList.add('dark-mode');
+                    toggleThemeBtn.innerHTML = '<i class="fas fa-sun"></i>';
+                } else {
+                    document.body.classList.remove('dark-mode');
+                    toggleThemeBtn.innerHTML = '<i class="fas fa-moon"></i>';
                 }
-                userId = id;
-                localStorage.setItem('safemesh_userid', userId);
-                hideConfigModal();
-                initializeAppWithID(userId);
             }
 
-            function initializeAppWithID(id) {
-                state.currentUser = {
-                    id: id,
-                    name: `Usuario_${id.substr(0, 5)}`,
-                    color: userColors[Math.floor(Math.random() * userColors.length)],
-                    lat: null,
-                    lng: null
-                };
+            function toggleSidebar() {
+                sidebar.classList.toggle('active');
+                mobileOverlay.classList.toggle('active');
+            }
 
-                // Mostrar modal de conexión inicialmente
-                connectModal.style.display = 'flex';
+            function closeSidebar() {
+                sidebar.classList.remove('active');
+                mobileOverlay.classList.remove('active');
+            }
+
+            function switchTab(tabName) {
+                // Actualizar pestañas activas
+                panelTabs.forEach(tab => tab.classList.remove('active'));
+                tabPanes.forEach(pane => pane.classList.remove('active'));
+                
+                // Activar la pestaña seleccionada
+                document.querySelector(`.panel-tab[data-tab="${tabName}"]`).classList.add('active');
+                document.getElementById(`${tabName}-tab`).classList.add('active');
+            }
+
+            function showModal(modal) {
+                modal.classList.add('active');
+            }
+
+            function hideModal(modal) {
+                modal.classList.remove('active');
+            }
+
+            function showNotification(message, type = '') {
+                notification.textContent = message;
+                notification.className = 'notification';
+                if (type) notification.classList.add(type);
+                notification.style.display = 'block';
+                
+                setTimeout(() => {
+                    notification.style.display = 'none';
+                }, 3000);
+            }
+
+            function showContextMenu(e, element) {
+                const peerId = element.getAttribute('data-peer-id');
+                const user = state.users.get(peerId);
+                
+                if (!user) return;
+                
+                contextMenu.innerHTML = `
+                    <div class="context-menu-item" data-action="center" data-peer-id="${peerId}">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <span>Centrar en mapa</span>
+                    </div>
+                    <div class="context-menu-item" data-action="message" data-peer-id="${peerId}">
+                        <i class="fas fa-comment"></i>
+                        <span>Enviar mensaje</span>
+                    </div>
+                    <div class="context-menu-item" data-action="info" data-peer-id="${peerId}">
+                        <i class="fas fa-info-circle"></i>
+                        <span>Información</span>
+                    </div>
+                    <div class="context-menu-item" data-action="disconnect" data-peer-id="${peerId}">
+                        <i class="fas fa-unlink"></i>
+                        <span>Desconectar</span>
+                    </div>
+                `;
+                
+                contextMenu.style.display = 'block';
+                contextMenu.style.left = `${e.pageX}px`;
+                contextMenu.style.top = `${e.pageY}px`;
+                
+                // Añadir event listeners a los items del menú
+                contextMenu.querySelectorAll('.context-menu-item').forEach(item => {
+                    item.addEventListener('click', handleContextMenuAction);
+                });
+            }
+
+            function handleContextMenuAction(e) {
+                const action = e.currentTarget.getAttribute('data-action');
+                const peerId = e.currentTarget.getAttribute('data-peer-id');
+                const user = state.users.get(peerId);
+                
+                if (!user) return;
+                
+                switch (action) {
+                    case 'center':
+                        if (user.lat && user.lng) {
+                            state.map.setView([user.lat, user.lng], 16);
+                            if (user.marker) user.marker.openPopup();
+                        }
+                        break;
+                    case 'message':
+                        switchTab('chat');
+                        messageInput.focus();
+                        messageInput.value = `@${user.name} `;
+                        break;
+                    case 'info':
+                        alert(`Usuario: ${user.name}\nID: ${peerId}\nDistancia: ${user.distance ? Math.round(user.distance) + 'm' : 'Desconocida'}`);
+                        break;
+                    case 'disconnect':
+                        if (state.connections.has(peerId)) {
+                            state.connections.get(peerId).close();
+                            showNotification(`Desconectado de ${user.name}`, 'info');
+                        }
+                        break;
+                }
+                
+                contextMenu.style.display = 'none';
             }
 
             // Funciones de inicialización
             function initMap() {
-                state.map = L.map('map').setView([40.4168, -3.7038], 13); // Madrid por defecto
+                state.map = L.map('map').setView([40.4168, -3.7038], 13);
 
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                     attribution: '&copy; OpenStreetMap contributors'
@@ -726,8 +1451,10 @@
                                 .bindPopup('Tu ubicación')
                                 .openPopup();
 
-                            state.currentUser.lat = latitude;
-                            state.currentUser.lng = longitude;
+                            if (state.currentUser) {
+                                state.currentUser.lat = latitude;
+                                state.currentUser.lng = longitude;
+                            }
                         },
                         error => {
                             console.error('Error obteniendo ubicación:', error);
@@ -739,65 +1466,131 @@
                 }
             }
 
-            function toggleMeshNetwork() {
-                if (state.meshActive) {
-                    disconnectMesh();
-                } else {
-                    connectMesh();
+            function centerMapOnUser() {
+                if (state.currentUser?.lat && state.currentUser?.lng) {
+                    state.map.setView([state.currentUser.lat, state.currentUser.lng], 16);
+                } else if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        position => {
+                            const { latitude, longitude } = position.coords;
+                            state.map.setView([latitude, longitude], 16);
+                        },
+                        error => {
+                            showNotification('No se pudo obtener la ubicación', 'error');
+                        }
+                    );
                 }
             }
 
+            function generateRandomID() {
+                const randomID = 'user_' + Math.random().toString(36).substr(2, 9);
+                userIDInput.value = randomID;
+            }
+
+            function saveConfiguration() {
+                const name = userNameInput.value.trim();
+                const id = userIDInput.value.trim() || 'user_' + Math.random().toString(36).substr(2, 9);
+                
+                if (!name) {
+                    showNotification('Por favor, introduce un nombre válido', 'error');
+                    return;
+                }
+                
+                const userData = {
+                    id: id,
+                    name: name,
+                    color: userColors[Math.floor(Math.random() * userColors.length)]
+                };
+                
+                localStorage.setItem('safemesh_user', JSON.stringify(userData));
+                hideModal(configModal);
+                initializeAppWithUser(userData);
+            }
+
+            function initializeAppWithUser(userData) {
+                state.currentUser = userData;
+                
+                // Actualizar UI
+                userAvatar.textContent = userData.name.charAt(0).toUpperCase();
+                userAvatar.style.backgroundColor = userData.color;
+                userName.textContent = userData.name;
+                userId.textContent = `ID: ${userData.id}`;
+                
+                // Conectar automáticamente
+                connectMesh();
+            }
+
             function connectMesh() {
+                if (!state.currentUser) return;
+                
                 updateStatus('connecting', 'Conectando...');
-
+                
                 // Crear instancia de Peer
-                state.peer = new Peer(userId, config.peerConfig);
-
-                state.peer.on('open', function(id) {
+                state.peer = new Peer(state.currentUser.id, config.peerConfig);
+                
+                state.peer.on('open', (id) => {
                     console.log('Conectado con ID: ', id);
-
-                    // Actualizar UI
                     updateStatus('connected', 'Conectado');
-                    toggleMeshBtn.textContent = 'Desactivar Red Mesh';
                     state.meshActive = true;
-
-                    // Mostrar información de conexión
-                    peerIdSpan.textContent = id;
-                    connectionInfo.style.display = 'block';
+                    state.reconnectAttempts = 0;
+                    
                     myPeerIdSpan.textContent = id;
-
+                    
                     // Iniciar seguimiento de ubicación
                     startLocationTracking();
-
-                    // Mostrar notificación
-                    showNotification('Red Mesh activada. Conectando con usuarios cercanos...', 'success');
+                    
+                    showNotification('Red Mesh activada', 'success');
                 });
-
-                state.peer.on('connection', function(conn) {
+                
+                state.peer.on('connection', (conn) => {
                     console.log('Conexión entrante de: ', conn.peer);
                     setupConnection(conn);
                 });
-
-                state.peer.on('error', function(err) {
+                
+                state.peer.on('error', (err) => {
                     console.error('Error de PeerJS: ', err);
-                    showNotification('Error de conexión: ' + err.type, 'error');
+                    
+                    if (err.type === 'peer-unavailable') {
+                        showNotification('Usuario no disponible', 'warning');
+                    } else {
+                        showNotification('Error de conexión: ' + err.type, 'error');
+                    }
+                    
                     updateStatus('disconnected', 'Desconectado');
-
+                    
                     // Intentar reconectar después de un tiempo
-                    setTimeout(connectMesh, 3000);
+                    attemptReconnect();
                 });
-
-                state.peer.on('disconnected', function() {
+                
+                state.peer.on('disconnected', () => {
                     console.log('Conexión perdida, intentando reconectar...');
                     updateStatus('connecting', 'Reconectando...');
                     showNotification('Conexión perdida. Reconectando...', 'warning');
                     state.peer.reconnect();
                 });
-
-                state.peer.on('close', function() {
+                
+                state.peer.on('close', () => {
                     console.log('Peer cerrado');
                     disconnectMesh();
                 });
+            }
+
+            function attemptReconnect() {
+                if (!state.meshActive) return;
+
+                const delay = Math.min(
+                    config.reconnectBaseDelay * Math.pow(2, state.reconnectAttempts),
+                    config.reconnectMaxDelay
+                );
+
+                state.reconnectAttempts++;
+
+                setTimeout(() => {
+                    if (state.meshActive) {
+                        showNotification(`Intentando reconectar (intento ${state.reconnectAttempts})`, 'info');
+                        connectMesh();
+                    }
+                }, delay);
             }
 
             function setupConnection(conn) {
@@ -817,12 +1610,7 @@
 
                     // Enviar ubicación actual
                     if (state.currentUser.lat && state.currentUser.lng) {
-                        dataChannel.send(JSON.stringify({
-                            type: 'location',
-                            lat: state.currentUser.lat,
-                            lng: state.currentUser.lng,
-                            userId: state.currentUser.id
-                        }));
+                        sendLocationUpdate();
                     }
 
                     // Enviar notas existentes
@@ -830,6 +1618,14 @@
                         dataChannel.send(JSON.stringify({
                             type: 'notes',
                             notes: state.notes
+                        }));
+                    }
+
+                    // Enviar archivos existentes
+                    if (state.files.length > 0) {
+                        dataChannel.send(JSON.stringify({
+                            type: 'files',
+                            files: state.files
                         }));
                     }
 
@@ -909,7 +1705,12 @@
                         updateUserLocation(peerId, message.lat, message.lng);
                         break;
                     case 'chat':
-                        displayChatMessage(message);
+                        decryptMessage(message).then(decrypted => {
+                            displayChatMessage(decrypted);
+                        }).catch(err => {
+                            console.error('Error decrypting message:', err);
+                            displayChatMessage(message); // Mostrar sin decryptar
+                        });
                         break;
                     case 'emergency':
                         handleEmergencyAlert(message);
@@ -921,6 +1722,20 @@
                         if (Array.isArray(message.notes)) {
                             message.notes.forEach(note => addNote(note));
                         }
+                        break;
+                    case 'file':
+                        receiveFile(message.file);
+                        break;
+                    case 'files':
+                        if (Array.isArray(message.files)) {
+                            message.files.forEach(file => receiveFile(file));
+                        }
+                        break;
+                    case 'file-request':
+                        sendFile(message.fileId, peerId);
+                        break;
+                    case 'file-chunk':
+                        receiveFileChunk(message);
                         break;
                     default:
                         console.log('Mensaje desconocido: ', message);
@@ -955,8 +1770,6 @@
 
                 // Actualizar UI
                 updateStatus('disconnected', 'Desconectado');
-                toggleMeshBtn.textContent = 'Activar Red Mesh';
-                connectionInfo.style.display = 'none';
                 state.meshActive = false;
 
                 showNotification('Red Mesh desactivada', 'info');
@@ -977,8 +1790,8 @@
                             state.currentUser.lat = latitude;
                             state.currentUser.lng = longitude;
 
-                            // Enviar ubicación a través de la red mesh
-                            broadcastLocation(latitude, longitude);
+                            // Enviar ubicación a través de la red mesh (con throttling)
+                            sendLocationUpdate();
 
                             // Comprobar proximidad con otros usuarios
                             checkProximity();
@@ -992,6 +1805,14 @@
                             maximumAge: 30000 
                         }
                     );
+                }
+            }
+
+            function sendLocationUpdate() {
+                const now = Date.now();
+                if (now - state.lastLocationUpdate > config.locationUpdateThrottle) {
+                    broadcastLocation(state.currentUser.lat, state.currentUser.lng);
+                    state.lastLocationUpdate = now;
                 }
             }
 
@@ -1031,7 +1852,7 @@
                         // Si está dentro del rango de alerta, activar vibración
                         if (distance <= config.proximityAlertDistance) {
                             triggerVibration();
-                            showNotification(`${user.name} está a ${Math.round(distance)} metros`, 'proximity');
+                            showNotification(`${user.name} está a ${Math.round(distance)} metros`, 'warning');
                         }
                     }
                 });
@@ -1090,7 +1911,7 @@
                     // Activar vibración
                     triggerVibration();
 
-                    showNotification('¡Alerta de emergencia enviada!', 'emergency');
+                    showNotification('¡Alerta de emergencia enviada!', 'error');
                 }
             }
 
@@ -1138,18 +1959,27 @@
                     timestamp: Date.now()
                 };
 
-                // Enviar a través de los canales de datos
-                state.dataChannels.forEach((dataChannel, peerId) => {
-                    if (dataChannel.open) {
-                        dataChannel.send(JSON.stringify(chatMessage));
-                    }
+                // Encriptar mensaje
+                encryptMessage(chatMessage).then(encrypted => {
+                    // Enviar a través de los canales de datos
+                    state.dataChannels.forEach((dataChannel, peerId) => {
+                        if (dataChannel.open) {
+                            dataChannel.send(JSON.stringify(encrypted));
+                        }
+                    });
+
+                    // Mostrar mensaje localmente
+                    displayChatMessage(chatMessage);
+
+                    // Guardar en historial
+                    saveMessageToHistory(chatMessage);
+
+                    // Limpiar campo de entrada
+                    messageInput.value = '';
+                }).catch(err => {
+                    console.error('Error encrypting message:', err);
+                    showNotification('Error al encriptar mensaje', 'error');
                 });
-
-                // Mostrar mensaje localmente
-                displayChatMessage(chatMessage);
-
-                // Limpiar campo de entrada
-                messageInput.value = '';
             }
 
             function displayChatMessage(message) {
@@ -1159,29 +1989,18 @@
                 const time = new Date(message.timestamp).toLocaleTimeString();
 
                 messageElement.innerHTML = `
-                    <div>
-                        <span class="message-sender">${message.userName}</span>
-                        <span class="message-time">${time}</span>
-                    </div>
-                    <div>${message.message}</div>
+                    <div class="message-sender">${message.userName}</div>
+                    <div class="message-content">${message.message}</div>
+                    <div class="message-time">${time}</div>
                 `;
 
                 chatMessages.appendChild(messageElement);
                 chatMessages.scrollTop = chatMessages.scrollHeight;
             }
 
-            function showNoteModal() {
-                if (!state.currentUser.lat || !state.currentUser.lng) {
-                    showNotification('Esperando obtener tu ubicación...', 'error');
-                    return;
-                }
-
-                noteModal.style.display = 'flex';
-            }
-
             function saveNote() {
-                const title = document.getElementById('noteTitle').value;
-                const content = document.getElementById('noteContent').value;
+                const title = noteTitleInput.value;
+                const content = noteContentInput.value;
 
                 if (!title || !content) return;
 
@@ -1199,12 +2018,16 @@
                 // Añadir nota al array
                 addNote(note);
 
+                // Guardar en base de datos
+                saveNoteToDB(note);
+
                 // Enviar nota a otros usuarios
                 broadcastNote(note);
 
                 // Cerrar modal y limpiar formulario
-                noteModal.style.display = 'none';
-                noteForm.reset();
+                hideModal(noteModal);
+                noteTitleInput.value = '';
+                noteContentInput.value = '';
 
                 showNotification('Nota guardada y compartida', 'success');
             }
@@ -1249,9 +2072,11 @@
                     const noteElement = document.createElement('li');
                     noteElement.className = 'note-item';
                     noteElement.innerHTML = `
-                        <div class="note-title">${note.title}</div>
-                        <div class="note-content">${note.content}</div>
-                        <small>Por: ${note.userName}</small>
+                        <i class="fas fa-sticky-note opacity-70"></i>
+                        <div class="user-details">
+                            <div class="note-title">${note.title}</div>
+                            <div class="note-preview">${note.content}</div>
+                        </div>
                     `;
 
                     noteElement.addEventListener('click', () => {
@@ -1282,7 +2107,7 @@
                 notesList.innerHTML = '';
 
                 if (nearbyNotes.length === 0) {
-                    notesList.innerHTML = '<li>No hay notas cercanas</li>';
+                    notesList.innerHTML = '<li class="note-item"><i class="fas fa-sticky-note opacity-70"></i><div class="user-details"><div class="note-title">No hay notas cercanas</div></div></li>';
                     return;
                 }
 
@@ -1290,9 +2115,11 @@
                     const noteElement = document.createElement('li');
                     noteElement.className = 'note-item';
                     noteElement.innerHTML = `
-                        <div class="note-title">${note.title}</div>
-                        <div class="note-content">${note.content}</div>
-                        <small>Por: ${note.userName}</small>
+                        <i class="fas fa-sticky-note opacity-70"></i>
+                        <div class="user-details">
+                            <div class="note-title">${note.title}</div>
+                            <div class="note-preview">${note.content}</div>
+                        </div>
                     `;
 
                     noteElement.addEventListener('click', () => {
@@ -1318,6 +2145,18 @@
                         }));
                     }
                 });
+            }
+
+            function receiveFile(fileData) {
+                // Evitar duplicados
+                if (state.files.some(f => f.id === fileData.id)) return;
+
+                state.files.push(fileData);
+                showNotification(`Archivo recibido: ${fileData.name}`, 'success');
+            }
+
+            function receiveFileChunk(chunkData) {
+                console.log('Received file chunk:', chunkData);
             }
 
             function addUser(user, peerId) {
@@ -1393,20 +2232,23 @@
                 usersList.innerHTML = '';
 
                 if (state.users.size === 0) {
-                    usersList.innerHTML = '<li>No hay usuarios conectados</li>';
+                    usersList.innerHTML = '<li class="user-item"><div class="user-color" style="background-color: #e74c3c;"></div><div class="user-details"><div class="user-displayname">No hay usuarios conectados</div></div></li>';
                     return;
                 }
 
                 state.users.forEach((user, peerId) => {
                     const userElement = document.createElement('li');
                     userElement.className = 'user-item';
+                    userElement.setAttribute('data-peer-id', peerId);
 
                     const distanceText = user.distance ? `${Math.round(user.distance)}m` : 'Desconocida';
 
                     userElement.innerHTML = `
                         <div class="user-color" style="background-color: ${user.color}"></div>
-                        <div class="user-name">${user.name}</div>
-                        <div class="user-distance">${distanceText}</div>
+                        <div class="user-details">
+                            <div class="user-displayname">${user.name}</div>
+                            <div class="user-distance">${distanceText}</div>
+                        </div>
                     `;
 
                     userElement.addEventListener('click', () => {
@@ -1420,23 +2262,14 @@
                 });
             }
 
-            function showNotification(message, type = 'info') {
-                notification.textContent = message;
-                notification.style.display = 'block';
+            function refreshUsers() {
+                updateUsersListUI();
+                showNotification('Lista de usuarios actualizada', 'success');
+            }
 
-                // Estilo según tipo
-                notification.style.backgroundColor = 
-                    type === 'error' ? '#e74c3c' :
-                    type === 'success' ? '#27ae60' :
-                    type === 'warning' ? '#f39c12' :
-                    type === 'emergency' ? '#e74c3c' :
-                    type === 'proximity' ? '#3498db' :
-                    '#2c3e50';
-
-                // Ocultar después de 3 segundos
-                setTimeout(() => {
-                    notification.style.display = 'none';
-                }, 3000);
+            function refreshNotes() {
+                updateNotesList();
+                showNotification('Lista de notas actualizada', 'success');
             }
 
             function updateStatus(status, text) {
@@ -1444,7 +2277,141 @@
                 statusText.textContent = text;
             }
 
-            // Funciones auxiliares
+            function setupConnectionMonitoring() {
+                window.addEventListener('online', () => {
+                    state.online = true;
+                    showNotification('Conexión a Internet restablecida', 'success');
+                });
+
+                window.addEventListener('offline', () => {
+                    state.online = false;
+                    updateStatus('disconnected', 'Sin conexión a Internet');
+                    showNotification('Sin conexión a Internet - Modo offline', 'warning');
+                });
+            }
+
+            function initDatabase() {
+                const request = indexedDB.open('SafeMeshDB', 1);
+
+                request.onerror = (event) => {
+                    console.error('Error opening database:', event);
+                };
+
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+
+                    // Crear object store para mensajes
+                    if (!db.objectStoreNames.contains('messages')) {
+                        db.createObjectStore('messages', { keyPath: 'id' });
+                    }
+
+                    // Crear object store para notas
+                    if (!db.objectStoreNames.contains('notes')) {
+                        db.createObjectStore('notes', { keyPath: 'id' });
+                    }
+
+                    // Crear object store para archivos
+                    if (!db.objectStoreNames.contains('files')) {
+                        db.createObjectStore('files', { keyPath: 'id' });
+                    }
+                };
+
+                request.onsuccess = (event) => {
+                    state.db = event.target.result;
+                    console.log('Database initialized successfully');
+                };
+            }
+
+            function saveMessageToHistory(message) {
+                if (!state.db) return;
+
+                const transaction = state.db.transaction(['messages'], 'readwrite');
+                const store = transaction.objectStore('messages');
+                store.add(message);
+            }
+
+            function saveNoteToDB(note) {
+                if (!state.db) return;
+
+                const transaction = state.db.transaction(['notes'], 'readwrite');
+                const store = transaction.objectStore('notes');
+                store.add(note);
+            }
+
+            async function generateEncryptionKey() {
+                try {
+                    state.encryptionKey = await crypto.subtle.generateKey(
+                        {
+                            name: 'AES-GCM',
+                            length: 256,
+                        },
+                        true,
+                        ['encrypt', 'decrypt']
+                    );
+                } catch (err) {
+                    console.error('Error generating encryption key:', err);
+                }
+            }
+
+            async function encryptMessage(message) {
+                if (!state.encryptionKey) {
+                    return message;
+                }
+
+                try {
+                    const encoder = new TextEncoder();
+                    const encoded = encoder.encode(JSON.stringify(message));
+
+                    const iv = crypto.getRandomValues(new Uint8Array(12));
+
+                    const encrypted = await crypto.subtle.encrypt(
+                        {
+                            name: 'AES-GCM',
+                            iv: iv
+                        },
+                        state.encryptionKey,
+                        encoded
+                    );
+
+                    return {
+                        type: 'chat-encrypted',
+                        iv: Array.from(iv),
+                        data: Array.from(new Uint8Array(encrypted))
+                    };
+                } catch (err) {
+                    console.error('Error encrypting message:', err);
+                    return message;
+                }
+            }
+
+            async function decryptMessage(encryptedMessage) {
+                if (encryptedMessage.type !== 'chat-encrypted' || !state.encryptionKey) {
+                    return encryptedMessage;
+                }
+
+                try {
+                    const iv = new Uint8Array(encryptedMessage.iv);
+                    const data = new Uint8Array(encryptedMessage.data);
+
+                    const decrypted = await crypto.subtle.decrypt(
+                        {
+                            name: 'AES-GCM',
+                            iv: iv
+                        },
+                        state.encryptionKey,
+                        data
+                    );
+
+                    const decoder = new TextDecoder();
+                    const decoded = decoder.decode(decrypted);
+
+                    return JSON.parse(decoded);
+                } catch (err) {
+                    console.error('Error decrypting message:', err);
+                    throw err;
+                }
+            }
+
             function generateId() {
                 return Math.random().toString(36).substring(2, 9);
             }
