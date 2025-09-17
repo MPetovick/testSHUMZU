@@ -140,6 +140,7 @@
         .status {
             display: flex;
             align-items: center;
+            gap: 0.5rem;
             margin-left: auto;
         }
 
@@ -151,11 +152,17 @@
         }
 
         .connected {
-            background-color: #2ecc71;
+            background-color: var(--success);
+            box-shadow: 0 0 8px var(--success);
         }
 
         .disconnected {
-            background-color: #e74c3c;
+            background-color: var(--accent);
+        }
+
+        .connecting {
+            background-color: var(--warning);
+            box-shadow: 0 0 8px var(--warning);
         }
 
         .user-list {
@@ -365,9 +372,80 @@
                 margin-left: 0;
             }
         }
+
+        /* Modal improvements */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content h3 {
+            margin-bottom: 1.5rem;
+            color: var(--primary);
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        .button-group {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+        }
+
+        .btn-secondary {
+            background-color: #e0e0e0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background-color: #d0d0d0;
+        }
     </style>
 </head>
 <body>
+    <!-- Modal de configuración inicial -->
+    <div id="configModal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>Configuración de SafeMesh Plus</h3>
+            <div class="form-group">
+                <label for="userID">Tu ID de usuario</label>
+                <input type="text" id="userID" placeholder="Introduce tu ID o genera uno aleatorio">
+            </div>
+            <div class="button-group">
+                <button id="generateID" class="btn-secondary">Generar ID</button>
+                <button id="saveConfig" class="btn-primary">Guardar</button>
+            </div>
+        </div>
+    </div>
+
     <header>
         <h1>SafeMesh Plus</h1>
         <div class="status">
@@ -433,8 +511,9 @@
         </div>
     </div>
 
-    <div id="connectModal" class="modal" style="display: flex;">
+    <div id="connectModal" class="modal">
         <div class="modal-content">
+            <span class="close-modal">&times;</span>
             <h3>Conectar con otros usuarios</h3>
             <p>Para conectar con otros usuarios, comparte tu ID o ingresa el ID de otra persona:</p>
             <div class="note-form">
@@ -503,7 +582,7 @@
             const notesList = document.getElementById('notesList');
             const noteModal = document.getElementById('noteModal');
             const noteForm = document.getElementById('noteForm');
-            const closeModal = document.querySelector('.close-modal');
+            const closeModal = document.querySelectorAll('.close-modal');
             const sidebarTabs = document.querySelectorAll('.sidebar-tab');
             const tabPanes = document.querySelectorAll('.tab-pane');
             const notification = document.getElementById('notification');
@@ -516,20 +595,29 @@
             const connectionInfo = document.getElementById('connectionInfo');
             const loadNotesBtn = document.getElementById('loadNotesBtn');
 
-            // Generar ID de usuario único
-            const userId = generateUserId();
-            state.currentUser = {
-                id: userId,
-                name: `Usuario_${userId.substr(0, 5)}`,
-                color: userColors[Math.floor(Math.random() * userColors.length)],
-                lat: null,
-                lng: null
-            };
+            // Elementos del modal de configuración
+            const configModalOverlay = document.getElementById('configModal');
+            const userIDInput = document.getElementById('userID');
+            const generateIDButton = document.getElementById('generateID');
+            const saveConfigButton = document.getElementById('saveConfig');
+
+            let userId = localStorage.getItem('safemesh_userid');
 
             // Inicializar mapa
             initMap();
 
-            // Configurar event listeners
+            // Verificar si ya hay un ID guardado
+            if (userId) {
+                initializeAppWithID(userId);
+            } else {
+                showConfigModal();
+            }
+
+            // Event listeners para modal de configuración
+            generateIDButton.addEventListener('click', generateRandomID);
+            saveConfigButton.addEventListener('click', saveConfiguration);
+
+            // Configurar event listeners generales
             toggleMeshBtn.addEventListener('click', toggleMeshNetwork);
             emergencyBtn.addEventListener('click', sendEmergencyAlert);
             addNoteBtn.addEventListener('click', showNoteModal);
@@ -538,8 +626,11 @@
                 if (e.key === 'Enter') sendChatMessage();
             });
 
-            closeModal.addEventListener('click', function() {
-                noteModal.style.display = 'none';
+            closeModal.forEach(cm => {
+                cm.addEventListener('click', function() {
+                    const parentModal = this.closest('.modal');
+                    if (parentModal) parentModal.style.display = 'none';
+                });
             });
 
             noteForm.addEventListener('submit', function(e) {
@@ -568,8 +659,51 @@
             window.addEventListener('click', function(e) {
                 if (e.target === noteModal) {
                     noteModal.style.display = 'none';
+                } else if (e.target === connectModal) {
+                    connectModal.style.display = 'none';
+                } else if (e.target === configModalOverlay) {
+                    configModalOverlay.classList.remove('active');
                 }
             });
+
+            // Funciones de configuración inicial
+            function showConfigModal() {
+                configModalOverlay.classList.add('active');
+            }
+
+            function hideConfigModal() {
+                configModalOverlay.classList.remove('active');
+            }
+
+            function generateRandomID() {
+                const randomID = 'user_' + Math.random().toString(36).substr(2, 9);
+                userIDInput.value = randomID;
+            }
+
+            function saveConfiguration() {
+                const id = userIDInput.value.trim();
+                if (!id) {
+                    showNotification('Por favor, introduce un ID válido', 'error');
+                    return;
+                }
+                userId = id;
+                localStorage.setItem('safemesh_userid', userId);
+                hideConfigModal();
+                initializeAppWithID(userId);
+            }
+
+            function initializeAppWithID(id) {
+                state.currentUser = {
+                    id: id,
+                    name: `Usuario_${id.substr(0, 5)}`,
+                    color: userColors[Math.floor(Math.random() * userColors.length)],
+                    lat: null,
+                    lng: null
+                };
+
+                // Mostrar modal de conexión inicialmente
+                connectModal.style.display = 'flex';
+            }
 
             // Funciones de inicialización
             function initMap() {
@@ -597,11 +731,11 @@
                         },
                         error => {
                             console.error('Error obteniendo ubicación:', error);
-                            alert('No se pudo obtener tu ubicación. Asegúrate de tener activado el GPS.');
+                            showNotification('No se pudo obtener tu ubicación. Asegúrate de tener activado el GPS.', 'error');
                         }
                     );
                 } else {
-                    alert('Tu navegador no soporta geolocalización.');
+                    showNotification('Tu navegador no soporta geolocalización.', 'error');
                 }
             }
 
@@ -614,33 +748,29 @@
             }
 
             function connectMesh() {
+                updateStatus('connecting', 'Conectando...');
+
                 // Crear instancia de Peer
                 state.peer = new Peer(userId, config.peerConfig);
 
                 state.peer.on('open', function(id) {
                     console.log('Conectado con ID: ', id);
-                    
+
                     // Actualizar UI
-                    statusIndicator.className = 'status-indicator connected';
-                    statusText.textContent = 'Conectado';
+                    updateStatus('connected', 'Conectado');
                     toggleMeshBtn.textContent = 'Desactivar Red Mesh';
                     state.meshActive = true;
-                    
+
                     // Mostrar información de conexión
                     peerIdSpan.textContent = id;
                     connectionInfo.style.display = 'block';
                     myPeerIdSpan.textContent = id;
-                    
+
                     // Iniciar seguimiento de ubicación
                     startLocationTracking();
-                    
+
                     // Mostrar notificación
                     showNotification('Red Mesh activada. Conectando con usuarios cercanos...', 'success');
-                    
-                    // Ocultar modal de conexión después de un tiempo
-                    setTimeout(() => {
-                        connectModal.style.display = 'none';
-                    }, 3000);
                 });
 
                 state.peer.on('connection', function(conn) {
@@ -651,16 +781,17 @@
                 state.peer.on('error', function(err) {
                     console.error('Error de PeerJS: ', err);
                     showNotification('Error de conexión: ' + err.type, 'error');
-                    
+                    updateStatus('disconnected', 'Desconectado');
+
                     // Intentar reconectar después de un tiempo
                     setTimeout(connectMesh, 3000);
                 });
 
                 state.peer.on('disconnected', function() {
                     console.log('Conexión perdida, intentando reconectar...');
-                    statusIndicator.className = 'status-indicator disconnected';
-                    statusText.textContent = 'Reconectando...';
+                    updateStatus('connecting', 'Reconectando...');
                     showNotification('Conexión perdida. Reconectando...', 'warning');
+                    state.peer.reconnect();
                 });
 
                 state.peer.on('close', function() {
@@ -672,18 +803,18 @@
             function setupConnection(conn) {
                 conn.on('open', function() {
                     console.log('Conexión establecida con: ', conn.peer);
-                    
+
                     // Crear canal de datos
                     const dataChannel = conn;
                     state.dataChannels.set(conn.peer, dataChannel);
                     state.connections.set(conn.peer, conn);
-                    
+
                     // Solicitar información del usuario conectado
                     dataChannel.send(JSON.stringify({
                         type: 'user-info',
                         user: state.currentUser
                     }));
-                    
+
                     // Enviar ubicación actual
                     if (state.currentUser.lat && state.currentUser.lng) {
                         dataChannel.send(JSON.stringify({
@@ -693,7 +824,7 @@
                             userId: state.currentUser.id
                         }));
                     }
-                    
+
                     // Enviar notas existentes
                     if (state.notes.length > 0) {
                         dataChannel.send(JSON.stringify({
@@ -701,10 +832,10 @@
                             notes: state.notes
                         }));
                     }
-                    
+
                     showNotification('Conectado con ' + conn.peer, 'success');
                 });
-                
+
                 conn.on('data', function(data) {
                     try {
                         const message = JSON.parse(data);
@@ -713,7 +844,7 @@
                         console.error('Error parsing message: ', e);
                     }
                 });
-                
+
                 conn.on('close', function() {
                     console.log('Conexión cerrada con: ', conn.peer);
                     removeUser(conn.peer);
@@ -721,7 +852,7 @@
                     state.connections.delete(conn.peer);
                     showNotification('Desconectado de ' + conn.peer, 'info');
                 });
-                
+
                 conn.on('error', function(err) {
                     console.error('Error en conexión: ', err);
                     showNotification('Error con ' + conn.peer + ': ' + err.message, 'error');
@@ -734,22 +865,22 @@
                     showNotification('Por favor, ingresa un ID válido', 'error');
                     return;
                 }
-                
+
                 if (remoteId === state.peer.id) {
                     showNotification('No puedes conectarte a ti mismo', 'error');
                     return;
                 }
-                
+
                 if (state.connections.has(remoteId)) {
                     showNotification('Ya estás conectado a este usuario', 'info');
                     return;
                 }
-                
+
                 try {
                     const conn = state.peer.connect(remoteId, {
                         reliable: true
                     });
-                    
+
                     setupConnection(conn);
                     remotePeerIdInput.value = '';
                 } catch (err) {
@@ -801,34 +932,33 @@
                 state.connections.forEach(conn => {
                     conn.close();
                 });
-                
+
                 // Cerrar peer
                 if (state.peer) {
                     state.peer.destroy();
                     state.peer = null;
                 }
-                
+
                 // Limpiar datos
                 state.connections.clear();
                 state.dataChannels.clear();
-                
+
                 // Limpiar usuarios
                 state.users.forEach(user => {
                     if (user.marker) state.map.removeLayer(user.marker);
                 });
                 state.users.clear();
                 updateUsersListUI();
-                
+
                 // Detener seguimiento de ubicación
                 stopLocationTracking();
-                
+
                 // Actualizar UI
-                statusIndicator.className = 'status-indicator disconnected';
-                statusText.textContent = 'Desconectado';
+                updateStatus('disconnected', 'Desconectado');
                 toggleMeshBtn.textContent = 'Activar Red Mesh';
                 connectionInfo.style.display = 'none';
                 state.meshActive = false;
-                
+
                 showNotification('Red Mesh desactivada', 'info');
             }
 
@@ -966,7 +1096,7 @@
 
             function handleEmergencyAlert(alert) {
                 // Mostrar alerta emergente
-                alert(`¡ALERTA DE EMERGENCIA de ${alert.userName}!`);
+                window.alert(`¡ALERTA DE EMERGENCIA de ${alert.userName}!`);
 
                 // Centrar mapa en la ubicación de la emergencia
                 if (alert.lat && alert.lng) {
@@ -1082,7 +1212,7 @@
             function addNote(note) {
                 // Evitar duplicados
                 if (state.notes.some(n => n.id === note.id)) return;
-                
+
                 state.notes.push(note);
 
                 // Añadir marcador en el mapa
@@ -1095,7 +1225,7 @@
             function addNoteMarker(note) {
                 // Evitar duplicados de marcadores
                 if (note.marker) return;
-                
+
                 note.marker = L.marker([note.lat, note.lng], {
                     icon: L.divIcon({
                         className: 'note-marker',
@@ -1195,10 +1325,10 @@
                 if (!user.color) {
                     user.color = userColors[state.users.size % userColors.length];
                 }
-                
+
                 // Añadir a la lista de usuarios
                 state.users.set(peerId, user);
-                
+
                 // Crear marcador para el usuario
                 if (user.lat && user.lng) {
                     user.marker = L.marker([user.lat, user.lng], {
@@ -1212,7 +1342,7 @@
                     .addTo(state.map)
                     .bindPopup(user.name);
                 }
-                
+
                 updateUsersListUI();
             }
 
@@ -1221,7 +1351,7 @@
                 if (user) {
                     user.lat = lat;
                     user.lng = lng;
-                    
+
                     if (user.marker) {
                         user.marker.setLatLng([lat, lng]);
                     } else {
@@ -1237,7 +1367,7 @@
                         .addTo(state.map)
                         .bindPopup(user.name);
                     }
-                    
+
                     // Actualizar distancia
                     if (state.currentUser.lat && state.currentUser.lng) {
                         user.distance = calculateDistance(
@@ -1245,7 +1375,7 @@
                             lat, lng
                         );
                     }
-                    
+
                     updateUsersListUI();
                 }
             }
@@ -1309,11 +1439,12 @@
                 }, 3000);
             }
 
-            // Funciones auxiliares
-            function generateUserId() {
-                return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+            function updateStatus(status, text) {
+                statusIndicator.className = 'status-indicator ' + status;
+                statusText.textContent = text;
             }
 
+            // Funciones auxiliares
             function generateId() {
                 return Math.random().toString(36).substring(2, 9);
             }
