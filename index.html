@@ -3,2409 +3,631 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SafeMesh Plus Enterprise - Red Mesh Segura</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <title>CryptoWord - El juego de palabras codificadas</title>
     <style>
         :root {
-            --primary: #2563eb;
-            --secondary: #3b82f6;
-            --accent: #ef4444;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --dark: #1e293b;
-            --light: #f8fafc;
-            --sidebar: #0f172a;
-            --card: #ffffff;
-            --text: #334155;
-            --text-light: #64748b;
-            --border: #e2e8f0;
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --accent: #e74c3c;
+            --light: #ecf0f1;
+            --dark: #2c3e50;
+            --success: #2ecc71;
         }
-
-        .dark-mode {
-            --primary: #3b82f6;
-            --secondary: #60a5fa;
-            --accent: #f87171;
-            --success: #34d399;
-            --warning: #fbbf24;
-            --dark: #0f172a;
-            --light: #1e293b;
-            --sidebar: #020617;
-            --card: #1e293b;
-            --text: #e2e8f0;
-            --text-light: #94a3b8;
-            --border: #334155;
-        }
-
-        * {
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+            color: var(--dark);
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
         }
-
-        body {
-            background-color: var(--light);
-            color: var(--text);
-            overflow: hidden;
-            transition: background-color 0.3s, color 0.3s;
-        }
-
-        #app {
-            display: grid;
-            grid-template-rows: 60px 1fr;
-            height: 100vh;
-        }
-
-        /* Header */
-        .header {
+        
+        header {
             background-color: var(--primary);
             color: white;
-            padding: 0 1.5rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            z-index: 100;
-        }
-
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            font-weight: 700;
-            font-size: 1.25rem;
-        }
-
-        .logo i {
-            font-size: 1.5rem;
-        }
-
-        .header-controls {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .btn-icon {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 1.25rem;
-            cursor: pointer;
-            padding: 0.5rem;
-            border-radius: 8px;
-            transition: background-color 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 40px;
-            height: 40px;
-        }
-
-        .btn-icon:hover {
-            background-color: rgba(255, 255, 255, 0.1);
-        }
-
-        .status {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            background: rgba(0, 0, 0, 0.2);
-            padding: 0.5rem 1rem;
-            border-radius: 20px;
-            font-size: 0.875rem;
-        }
-
-        .status-indicator {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-        }
-
-        .connected {
-            background-color: var(--success);
-            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3);
-        }
-
-        .disconnected {
-            background-color: var(--accent);
-        }
-
-        .connecting {
-            background-color: var(--warning);
-            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.3);
-        }
-
-        /* Main Layout */
-        .main-container {
-            display: grid;
-            grid-template-columns: 300px 1fr 380px;
-            height: 100%;
-            overflow: hidden;
-        }
-
-        /* Sidebar */
-        .sidebar {
-            background-color: var(--sidebar);
-            color: white;
-            display: flex;
-            flex-direction: column;
-            border-right: 1px solid var(--border);
-            overflow: hidden;
-        }
-
-        .sidebar-header {
-            padding: 1.5rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .user-profile {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        .user-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background-color: var(--primary);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-        }
-
-        .user-info {
-            flex: 1;
-            overflow: hidden;
-        }
-
-        .user-name {
-            font-weight: 600;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .user-id {
-            font-size: 0.75rem;
-            opacity: 0.7;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .sidebar-content {
-            flex: 1;
-            overflow-y: auto;
-            padding: 1rem;
-        }
-
-        .section-title {
-            font-size: 0.875rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 1rem;
-            opacity: 0.7;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .action-btn {
-            background: none;
-            border: none;
-            color: white;
-            cursor: pointer;
-            opacity: 0.7;
-            transition: opacity 0.2s;
-        }
-
-        .action-btn:hover {
-            opacity: 1;
-        }
-
-        .user-list, .notes-list {
-            list-style: none;
-        }
-
-        .user-item, .note-item {
-            padding: 0.75rem;
-            border-radius: 8px;
-            margin-bottom: 0.5rem;
-            cursor: pointer;
-            transition: background-color 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        .user-item:hover, .note-item:hover {
-            background-color: rgba(255, 255, 255, 0.05);
-        }
-
-        .user-color {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            flex-shrink: 0;
-        }
-
-        .user-details {
-            flex: 1;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .user-displayname {
-            font-weight: 500;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .user-distance {
-            font-size: 0.75rem;
-            opacity: 0.7;
-        }
-
-        .note-title {
-            font-weight: 500;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .note-preview {
-            font-size: 0.75rem;
-            opacity: 0.7;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        /* Map */
-        .map-container {
-            position: relative;
-            overflow: hidden;
-        }
-
-        #map {
-            width: 100%;
-            height: 100%;
-        }
-
-        .map-controls {
-            position: absolute;
-            top: 1rem;
-            right: 1rem;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            z-index: 1000;
-        }
-
-        .map-btn {
-            background-color: var(--card);
-            border: none;
-            border-radius: 8px;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            cursor: pointer;
-            color: var(--text);
-            transition: all 0.2s;
-        }
-
-        .map-btn:hover {
-            background-color: var(--primary);
-            color: white;
-        }
-
-        /* Panel lateral derecho */
-        .right-panel {
-            background-color: var(--card);
-            border-left: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .panel-tabs {
-            display: flex;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .panel-tab {
-            flex: 1;
             padding: 1rem;
             text-align: center;
-            cursor: pointer;
-            transition: background-color 0.2s;
-            font-weight: 500;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 1rem;
+            flex: 1;
+        }
+        
+        .game-area {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        @media (max-width: 768px) {
+            .game-area {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .grid-container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        
+        .letter-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            margin-bottom: 1rem;
+        }
+        
+        .letter-cell {
+            aspect-ratio: 1;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 0.5rem;
-        }
-
-        .panel-tab.active {
-            border-bottom: 2px solid var(--primary);
-            color: var(--primary);
-        }
-
-        .panel-content {
-            flex: 1;
-            overflow-y: auto;
-            padding: 1.5rem;
-        }
-
-        .tab-pane {
-            display: none;
-        }
-
-        .tab-pane.active {
-            display: block;
-        }
-
-        .chat-messages {
-            height: calc(100% - 120px);
-            overflow-y: auto;
-            margin-bottom: 1rem;
-        }
-
-        .message {
-            margin-bottom: 1rem;
-            padding: 0.75rem;
-            border-radius: 8px;
             background-color: var(--light);
-            max-width: 80%;
-        }
-
-        .message.own {
-            margin-left: auto;
-            background-color: var(--primary);
-            color: white;
-        }
-
-        .message-sender {
-            font-weight: 600;
-            font-size: 0.875rem;
-            margin-bottom: 0.25rem;
-        }
-
-        .message-content {
-            font-size: 0.95rem;
-        }
-
-        .message-time {
-            font-size: 0.75rem;
-            opacity: 0.7;
-            text-align: right;
-            margin-top: 0.25rem;
-        }
-
-        .chat-input {
-            display: flex;
-            gap: 0.5rem;
-        }
-
-        .chat-input input {
-            flex: 1;
-            padding: 0.75rem;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            background-color: var(--light);
-            color: var(--text);
-        }
-
-        .send-btn {
-            background-color: var(--primary);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            width: 46px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            border-radius: 4px;
+            font-size: 1.5rem;
+            font-weight: bold;
             cursor: pointer;
-        }
-
-        /* Connect Panel */
-        .connect-section {
-            margin-bottom: 1.5rem;
-        }
-
-        .input-group {
-            margin-bottom: 1rem;
-        }
-
-        .input-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 500;
-            font-size: 0.875rem;
-        }
-
-        .input-with-button {
-            display: flex;
-            gap: 0.5rem;
-        }
-
-        .input-with-button input {
-            flex: 1;
-            padding: 0.75rem;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            background-color: var(--light);
-            color: var(--text);
-        }
-
-        .input-with-button button {
-            white-space: nowrap;
-        }
-
-        .btn {
-            padding: 0.75rem 1.25rem;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 500;
+            user-select: none;
             transition: all 0.2s;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
         }
-
-        .btn-primary {
-            background-color: var(--primary);
+        
+        .letter-cell.selected {
+            background-color: var(--secondary);
             color: white;
         }
-
-        .btn-primary:hover {
-            background-color: var(--secondary);
-        }
-
-        .btn-success {
+        
+        .letter-cell.found {
             background-color: var(--success);
             color: white;
         }
-
-        .btn-outline {
-            background-color: transparent;
-            border: 1px solid var(--border);
-            color: var(--text);
-        }
-
-        .btn-outline:hover {
-            background-color: var(--light);
-        }
-
-        .btn-sm {
-            padding: 0.5rem 1rem;
-            font-size: 0.875rem;
-        }
-
-        .discovery-section {
-            margin-top: 1.5rem;
-        }
-
-        .discovery-list {
-            list-style: none;
-            margin-top: 1rem;
-        }
-
-        .discovery-item {
-            padding: 0.75rem;
-            border-radius: 8px;
-            margin-bottom: 0.5rem;
-            background-color: var(--light);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .discovery-info {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        /* Notes Panel */
-        .notes-actions {
+        
+        .controls {
             display: flex;
             gap: 0.5rem;
             margin-bottom: 1rem;
         }
-
-        .note-card {
-            background-color: var(--light);
+        
+        button {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            background-color: var(--secondary);
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        button:hover {
+            background-color: var(--primary);
+        }
+        
+        .info-panel {
+            background-color: white;
             border-radius: 8px;
             padding: 1rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        
+        .code-key {
             margin-bottom: 1rem;
-            cursor: pointer;
-            transition: transform 0.2s;
         }
-
-        .note-card:hover {
-            transform: translateY(-2px);
-        }
-
-        .note-card-header {
+        
+        .code-item {
             display: flex;
-            align-items: center;
             justify-content: space-between;
-            margin-bottom: 0.5rem;
+            padding: 0.25rem 0;
+            border-bottom: 1px solid #eee;
         }
-
-        .note-card-title {
-            font-weight: 600;
+        
+        .word-list {
+            max-height: 300px;
+            overflow-y: auto;
         }
-
-        .note-card-distance {
-            font-size: 0.75rem;
-            opacity: 0.7;
+        
+        .word-list ul {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
         }
-
-        .note-card-content {
-            font-size: 0.9rem;
-            margin-bottom: 0.5rem;
+        
+        .word-list li {
+            padding: 0.5rem;
+            border-bottom: 1px solid #eee;
         }
-
-        .note-card-footer {
+        
+        .stats {
             display: flex;
-            align-items: center;
-            justify-content: space-between;
-            font-size: 0.75rem;
-            opacity: 0.7;
+            justify-content: space-around;
+            margin: 1rem 0;
+            text-align: center;
         }
-
-        /* Modal */
-        .modal-overlay {
+        
+        .stat-item {
+            padding: 0.5rem;
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        .modal {
+            display: none;
             position: fixed;
             top: 0;
             left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(0, 0, 0, 0.5);
-            display: none;
-            justify-content: center;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
             align-items: center;
-            z-index: 2000;
-            padding: 1rem;
+            justify-content: center;
+            z-index: 1000;
         }
-
-        .modal-overlay.active {
-            display: flex;
-        }
-
+        
         .modal-content {
-            background-color: var(--card);
-            border-radius: 12px;
-            width: 100%;
+            background-color: white;
+            padding: 2rem;
+            border-radius: 8px;
             max-width: 500px;
-            max-height: 90vh;
-            overflow-y: auto;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-        }
-
-        .modal-header {
-            padding: 1.5rem;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .modal-title {
-            font-weight: 600;
-            font-size: 1.25rem;
-        }
-
-        .close-modal {
-            background: none;
-            border: none;
-            font-size: 1.5rem;
-            cursor: pointer;
-            color: var(--text-light);
-        }
-
-        .modal-body {
-            padding: 1.5rem;
-        }
-
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 500;
-        }
-
-        .form-group input, .form-group textarea {
             width: 100%;
-            padding: 0.75rem;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            background-color: var(--light);
-            color: var(--text);
+            text-align: center;
         }
-
-        .form-group textarea {
-            min-height: 120px;
-            resize: vertical;
-        }
-
-        .modal-footer {
-            padding: 1.5rem;
-            border-top: 1px solid var(--border);
+        
+        .difficulty-selector {
             display: flex;
-            justify-content: flex-end;
-            gap: 0.75rem;
-        }
-
-        /* Notification */
-        .notification {
-            position: fixed;
-            bottom: 1.5rem;
-            right: 1.5rem;
-            padding: 1rem 1.5rem;
-            background-color: var(--dark);
-            color: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            display: none;
-            z-index: 2000;
-            max-width: 350px;
-            animation: slideIn 0.3s ease;
-        }
-
-        .notification.success {
-            background-color: var(--success);
-        }
-
-        .notification.error {
-            background-color: var(--accent);
-        }
-
-        .notification.warning {
-            background-color: var(--warning);
-        }
-
-        @keyframes slideIn {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-
-        /* Emergency button */
-        .emergency-btn {
-            position: fixed;
-            bottom: 2rem;
-            right: 2rem;
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background-color: var(--accent);
-            color: white;
-            border: none;
-            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
-            display: flex;
-            align-items: center;
+            gap: 1rem;
             justify-content: center;
-            cursor: pointer;
-            z-index: 1000;
-            animation: pulse 2s infinite;
+            margin: 1rem 0;
         }
-
-        @keyframes pulse {
-            0% {
-                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
-            }
-            70% {
-                box-shadow: 0 0 0 12px rgba(239, 68, 68, 0);
-            }
-            100% {
-                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
-            }
+        
+        .difficulty-btn {
+            padding: 0.5rem 1.5rem;
         }
-
-        /* Context menu */
-        .context-menu {
-            position: absolute;
-            background-color: var(--card);
-            border-radius: 8px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-            z-index: 1000;
-            display: none;
-            overflow: hidden;
-            min-width: 180px;
-            border: 1px solid var(--border);
-        }
-
-        .context-menu-item {
-            padding: 0.75rem 1rem;
-            cursor: pointer;
-            transition: background-color 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            font-size: 0.9rem;
-        }
-
-        .context-menu-item:hover {
-            background-color: var(--light);
-        }
-
-        /* Responsive */
-        @media (max-width: 1024px) {
-            .main-container {
-                grid-template-columns: 280px 1fr;
-            }
-            .right-panel {
-                position: fixed;
-                top: 60px;
-                right: 0;
-                bottom: 0;
-                width: 380px;
-                transform: translateX(100%);
-                transition: transform 0.3s;
-                z-index: 100;
-            }
-            .right-panel.active {
-                transform: translateX(0);
-            }
-            .panel-toggle {
-                display: flex;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .main-container {
-                grid-template-columns: 1fr;
-            }
-            .sidebar {
-                position: fixed;
-                top: 60px;
-                left: 0;
-                bottom: 0;
-                width: 280px;
-                transform: translateX(-100%);
-                transition: transform 0.3s;
-                z-index: 100;
-            }
-            .sidebar.active {
-                transform: translateX(0);
-            }
-            .mobile-overlay {
-                position: fixed;
-                top: 60px;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background-color: rgba(0, 0, 0, 0.5);
-                display: none;
-                z-index: 90;
-            }
-            .mobile-overlay.active {
-                display: block;
-            }
-        }
-
-        /* Utilities */
-        .hidden {
-            display: none !important;
-        }
-
-        .text-sm {
-            font-size: 0.875rem;
-        }
-
-        .text-xs {
-            font-size: 0.75rem;
-        }
-
-        .opacity-70 {
-            opacity: 0.7;
-        }
-
-        .mt-2 {
-            margin-top: 0.5rem;
-        }
-
-        .mb-2 {
-            margin-bottom: 0.5rem;
-        }
-
-        .ml-auto {
-            margin-left: auto;
-        }
-
-        .flex {
-            display: flex;
-        }
-
-        .items-center {
-            align-items: center;
-        }
-
-        .justify-between {
-            justify-content: space-between;
+        
+        footer {
+            background-color: var(--primary);
+            color: white;
+            text-align: center;
+            padding: 1rem;
+            margin-top: auto;
         }
     </style>
 </head>
 <body>
-    <div id="app">
-        <header class="header">
-            <div class="logo">
-                <i class="fas fa-network-wired"></i>
-                <span>SafeMesh Plus</span>
+    <header>
+        <h1>CryptoWord</h1>
+        <p>Descifra el código y encuentra palabras</p>
+    </header>
+    
+    <div class="container">
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-value" id="words-found">0</div>
+                <div>Palabras</div>
             </div>
-            <div class="header-controls">
-                <button class="btn-icon" id="toggleTheme" title="Cambiar tema">
-                    <i class="fas fa-moon"></i>
-                </button>
-                <button class="btn-icon" id="sidebarToggle" title="Menú">
-                    <i class="fas fa-bars"></i>
-                </button>
-                <div class="status">
-                    <div id="statusIndicator" class="status-indicator disconnected"></div>
-                    <span id="statusText">Desconectado</span>
-                </div>
+            <div class="stat-item">
+                <div class="stat-value" id="time">05:00</div>
+                <div>Tiempo</div>
             </div>
-        </header>
-        <div class="main-container">
-            <aside class="sidebar" id="sidebar">
-                <div class="sidebar-header">
-                    <div class="user-profile">
-                        <div class="user-avatar" id="userAvatar">U</div>
-                        <div class="user-info">
-                            <div class="user-name" id="userName">Usuario</div>
-                            <div class="user-id" id="userId">ID: No configurado</div>
-                        </div>
-                    </div>
+            <div class="stat-item">
+                <div class="stat-value" id="score">0</div>
+                <div>Puntuación</div>
+            </div>
+        </div>
+        
+        <div class="game-area">
+            <div class="grid-container">
+                <div class="letter-grid" id="letter-grid">
+                    <!-- Las celdas se generarán con JavaScript -->
                 </div>
-                <div class="sidebar-content">
-                    <div class="section-title">
-                        <span>Usuarios cercanos</span>
-                        <button class="action-btn" id="refreshUsers">
-                            <i class="fas fa-sync-alt"></i>
-                        </button>
-                    </div>
-                    <ul class="user-list" id="usersList">
-                        <li class="user-item">
-                            <div class="user-color" style="background-color: #e74c3c;"></div>
-                            <div class="user-details">
-                                <div class="user-displayname">Cargando...</div>
-                                <div class="user-distance">Conectando</div>
-                            </div>
-                        </li>
-                    </ul>
-                    <div class="section-title mt-2">
-                        <span>Notas recientes</span>
-                        <button class="action-btn" id="refreshNotes">
-                            <i class="fas fa-sync-alt"></i>
-                        </button>
-                    </div>
-                    <ul class="notes-list" id="notesList">
-                        <li class="note-item">
-                            <i class="fas fa-sticky-note opacity-70"></i>
-                            <div class="user-details">
-                                <div class="note-title">Cargando...</div>
-                                <div class="note-preview">No hay notas disponibles</div>
-                            </div>
-                        </li>
+                <div class="controls">
+                    <button id="submit-word">Enviar palabra</button>
+                    <button id="clear-selection">Limpiar</button>
+                    <button id="hint">Pista</button>
+                </div>
+                <div id="current-word"></div>
+            </div>
+            
+            <div class="info-panel">
+                <h3>Código</h3>
+                <div class="code-key" id="code-key">
+                    <!-- Las claves del código se generarán con JavaScript -->
+                </div>
+                
+                <h3>Palabras encontradas</h3>
+                <div class="word-list">
+                    <ul id="found-words">
+                        <!-- Las palabras encontradas se añadirán aquí -->
                     </ul>
                 </div>
-            </aside>
-            <main class="map-container">
-                <div id="map"></div>
-                <div class="map-controls">
-                    <button class="map-btn" id="locateMe" title="Mi ubicación">
-                        <i class="fas fa-location-arrow"></i>
-                    </button>
-                    <button class="map-btn" id="zoomIn" title="Acercar">
-                        <i class="fas fa-plus"></i>
-                    </button>
-                    <button class="map-btn" id="zoomOut" title="Alejar">
-                        <i class="fas fa-minus"></i>
-                    </button>
-                </div>
-            </main>
-            <div class="right-panel" id="rightPanel">
-                <div class="panel-tabs">
-                    <div class="panel-tab active" data-tab="chat">
-                        <i class="fas fa-comments"></i>
-                        <span>Chat</span>
-                    </div>
-                    <div class="panel-tab" data-tab="connect">
-                        <i class="fas fa-wifi"></i>
-                        <span>Conexiones</span>
-                    </div>
-                    <div class="panel-tab" data-tab="notes">
-                        <i class="fas fa-sticky-note"></i>
-                        <span>Notas</span>
-                    </div>
-                </div>
-                <div class="panel-content">
-                    <div class="tab-pane active" id="chat-tab">
-                        <div class="chat-messages" id="chatMessages">
-                            <div class="message">
-                                <div class="message-sender">Sistema</div>
-                                <div class="message-content">Bienvenido a SafeMesh Plus. Los mensajes están encriptados de extremo a extremo.</div>
-                                <div class="message-time">Ahora</div>
-                            </div>
-                        </div>
-                        <div class="chat-input">
-                            <input type="text" id="messageInput" placeholder="Escribe un mensaje...">
-                            <button class="send-btn" id="sendMessageBtn">
-                                <i class="fas fa-paper-plane"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="tab-pane" id="connect-tab">
-                        <div class="connect-section">
-                            <h3 class="mb-2">Conectar con usuario</h3>
-                            <div class="input-group">
-                                <label>ID de usuario</label>
-                                <div class="input-with-button">
-                                    <input type="text" id="remotePeerId" placeholder="Ingresa el ID del usuario">
-                                    <button class="btn btn-primary btn-sm" id="connectToPeerBtn">
-                                        <i class="fas fa-link"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <span class="text-sm">Tu ID: <strong id="myPeerId">No disponible</strong></span>
-                                <button class="btn btn-outline btn-sm" id="copyPeerIdBtn">
-                                    <i class="fas fa-copy"></i> Copiar
-                                </button>
-                            </div>
-                        </div>
-                        <div class="discovery-section">
-                            <h3 class="mb-2">Usuarios descubiertos</h3>
-                            <p class="text-sm opacity-70 mb-2">Usuarios cercanos detectados automáticamente</p>
-                            <ul class="discovery-list" id="discoveryList">
-                                <li class="discovery-item">
-                                    <div class="discovery-info">
-                                        <div class="user-color" style="background-color: #3498db;"></div>
-                                        <span>Usuario123 (25m)</span>
-                                    </div>
-                                    <button class="btn btn-success btn-sm">
-                                        <i class="fas fa-plus"></i> Conectar
-                                    </button>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                    <div class="tab-pane" id="notes-tab">
-                        <div class="notes-actions">
-                            <button class="btn btn-primary" id="addNoteBtn">
-                                <i class="fas fa-plus"></i> Nueva nota
-                            </button>
-                            <button class="btn btn-outline" id="loadNotesBtn">
-                                <i class="fas fa-sync-alt"></i> Actualizar
-                            </button>
-                        </div>
-                        <div id="notesContainer">
-                            <div class="note-card">
-                                <div class="note-card-header">
-                                    <div class="note-card-title">Ejemplo de nota</div>
-                                    <div class="note-card-distance">125m</div>
-                                </div>
-                                <div class="note-card-content">
-                                    Esta es una nota de ejemplo que se muestra en la interfaz.
-                                </div>
-                                <div class="note-card-footer">
-                                    <span>Por: Usuario123</span>
-                                    <span>Hace 2h</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="mobile-overlay" id="mobileOverlay"></div>
-        </div>
-        <button class="emergency-btn" id="emergencyBtn" title="Alerta de emergencia">
-            <i class="fas fa-bell"></i>
-        </button>
-        <div class="modal-overlay" id="configModal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2 class="modal-title">Configuración de SafeMesh</h2>
-                    <button class="close-modal">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label for="userNameInput">Nombre de usuario</label>
-                        <input type="text" id="userNameInput" placeholder="Ingresa tu nombre">
-                    </div>
-                    <div class="form-group">
-                        <label for="userIDInput">ID de usuario (opcional)</label>
-                        <input type="text" id="userIDInput" placeholder="O deja en blanco para generar automáticamente">
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-outline" id="generateIDBtn">Generar ID</button>
-                    <button class="btn btn-primary" id="saveConfigBtn">Guardar</button>
-                </div>
-            </div>
-        </div>
-        <div class="modal-overlay" id="noteModal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2 class="modal-title">Crear nueva nota</h2>
-                    <button class="close-modal">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label for="noteTitleInput">Título de la nota</label>
-                        <input type="text" id="noteTitleInput" placeholder="Ingresa un título">
-                    </div>
-                    <div class="form-group">
-                        <label for="noteContentInput">Contenido</label>
-                        <textarea id="noteContentInput" placeholder="Escribe el contenido de tu nota"></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-outline" id="cancelNoteBtn">Cancelar</button>
-                    <button class="btn btn-primary" id="saveNoteBtn">Guardar nota</button>
-                </div>
-            </div>
-        </div>
-        <div class="notification" id="notification"></div>
-        <div class="context-menu" id="contextMenu">
-            <div class="context-menu-item" data-action="center">
-                <i class="fas fa-map-marker-alt"></i>
-                <span>Centrar en mapa</span>
-            </div>
-            <div class="context-menu-item" data-action="message">
-                <i class="fas fa-comment"></i>
-                <span>Enviar mensaje</span>
-            </div>
-            <div class="context-menu-item" data-action="info">
-                <i class="fas fa-info-circle"></i>
-                <span>Información</span>
-            </div>
-            <div class="context-menu-item" data-action="disconnect">
-                <i class="fas fa-unlink"></i>
-                <span>Desconectar</span>
             </div>
         </div>
     </div>
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    
+    <div class="modal" id="start-modal">
+        <div class="modal-content">
+            <h2>¡Bienvenido a CryptoWord!</h2>
+            <p>Descifra el código y forma palabras conectando letras adyacentes.</p>
+            <p>Selecciona tu dificultad:</p>
+            <div class="difficulty-selector">
+                <button class="difficulty-btn" data-difficulty="easy">Fácil</button>
+                <button class="difficulty-btn" data-difficulty="medium">Medio</button>
+                <button class="difficulty-btn" data-difficulty="hard">Difícil</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal" id="end-modal">
+        <div class="modal-content">
+            <h2 id="end-message">¡Tiempo completado!</h2>
+            <p>Puntuación final: <span id="final-score">0</span></p>
+            <p>Palabras encontradas: <span id="final-words">0</span></p>
+            <button id="play-again">Jugar de nuevo</button>
+        </div>
+    </div>
+    
+    <footer>
+        <p>CryptoWord - Un juego de palabras codificadas</p>
+    </footer>
+
     <script>
-        // Configuración y estado de la aplicación
-        const config = {
-            peerConfig: {
-                host: '0.peerjs.com',
-                port: 443,
-                secure: true,
-                debug: 1,
-                config: {
-                    iceServers: [
-                        { urls: 'stun:stun.l.google.com:19302' },
-                        { urls: 'stun:stun1.l.google.com:19302' },
-                        { urls: 'stun:stun2.l.google.com:19302' },
-                        { 
-                            urls: 'turn:global.turn.twilio.com:3478', 
-                            username: 'username', // En producción, usar credenciales reales
-                            credential: 'credential' 
-                        }
-                    ]
-                }
-            },
-            proximityAlertDistance: 100, // metros
-            updateInterval: 5000, // ms
-            noteVisibilityDistance: 500, // metros
-            maxFileSize: 10 * 1024 * 1024, // 10MB
-            reconnectBaseDelay: 1000,
-            reconnectMaxDelay: 30000,
-            locationUpdateThrottle: 2000
+        // Aquí irá la lógica del juego
+        // Incluirá:
+        // - Generación de la cuadrícula
+        // - Sistema de codificación
+        // - Lógica de selección de palabras
+        // - Verificación de palabras válidas
+        // - Temporizador y sistema de puntuación
+        // - Gestión de diferentes dificultades
+
+        // Estructura básica de datos
+        const gameState = {
+            difficulty: 'medium',
+            grid: [],
+            code: {},
+            selectedCells: [],
+            foundWords: [],
+            score: 0,
+            timeLeft: 300, // 5 minutos en segundos
+            timer: null,
+            isGameActive: false
         };
 
-        const state = {
-            meshActive: false,
-            peer: null,
-            connections: new Map(),
-            dataChannels: new Map(),
-            users: new Map(),
-            notes: [],
-            files: [],
-            currentUser: null,
-            map: null,
-            userMarker: null,
-            watchId: null,
-            lastLocationUpdate: 0,
-            reconnectAttempts: 0,
-            encryptionKey: null,
-            db: null,
-            online: navigator.onLine,
-            darkMode: localStorage.getItem('darkMode') === 'true'
-        };
+        // Diccionario de palabras (simplificado para el ejemplo)
+        const wordList = ['AMOR', 'CASA', 'SOL', 'LUNA', 'MAR', 'RIO', 'MONTE', 'ARBOL', 'FLOR', 'GATO', 'PERRO', 'PALABRA', 'JUEGO', 'CODIGO'];
 
-        // Colores para usuarios
-        const userColors = [
-            '#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', 
-            '#1abc9c', '#d35400', '#c0392b', '#16a085', '#8e44ad'
-        ];
-
-        // Inicialización cuando el DOM está listo
-        document.addEventListener('DOMContentLoaded', function() {
-            // Elementos de la UI
-            const toggleThemeBtn = document.getElementById('toggleTheme');
-            const sidebarToggle = document.getElementById('sidebarToggle');
-            const sidebar = document.getElementById('sidebar');
-            const mobileOverlay = document.getElementById('mobileOverlay');
-            const statusIndicator = document.getElementById('statusIndicator');
-            const statusText = document.getElementById('statusText');
-            const userAvatar = document.getElementById('userAvatar');
-            const userName = document.getElementById('userName');
-            const userId = document.getElementById('userId');
-            const usersList = document.getElementById('usersList');
-            const notesList = document.getElementById('notesList');
-            const chatMessages = document.getElementById('chatMessages');
-            const messageInput = document.getElementById('messageInput');
-            const sendMessageBtn = document.getElementById('sendMessageBtn');
-            const panelTabs = document.querySelectorAll('.panel-tab');
-            const tabPanes = document.querySelectorAll('.tab-pane');
-            const notification = document.getElementById('notification');
-            const remotePeerIdInput = document.getElementById('remotePeerId');
-            const connectToPeerBtn = document.getElementById('connectToPeerBtn');
-            const myPeerIdSpan = document.getElementById('myPeerId');
-            const copyPeerIdBtn = document.getElementById('copyPeerIdBtn');
-            const discoveryList = document.getElementById('discoveryList');
-            const addNoteBtn = document.getElementById('addNoteBtn');
-            const loadNotesBtn = document.getElementById('loadNotesBtn');
-            const notesContainer = document.getElementById('notesContainer');
-            const emergencyBtn = document.getElementById('emergencyBtn');
-            const locateMeBtn = document.getElementById('locateMe');
-            const zoomInBtn = document.getElementById('zoomIn');
-            const zoomOutBtn = document.getElementById('zoomOut');
-            const refreshUsersBtn = document.getElementById('refreshUsers');
-            const refreshNotesBtn = document.getElementById('refreshNotes');
-            const contextMenu = document.getElementById('contextMenu');
-
-            // Elementos del modal de configuración
-            const configModal = document.getElementById('configModal');
-            const userNameInput = document.getElementById('userNameInput');
-            const userIDInput = document.getElementById('userIDInput');
-            const generateIDBtn = document.getElementById('generateIDBtn');
-            const saveConfigBtn = document.getElementById('saveConfigBtn');
-            const closeModalButtons = document.querySelectorAll('.close-modal');
-
-            // Elementos del modal de nota
-            const noteModal = document.getElementById('noteModal');
-            const noteTitleInput = document.getElementById('noteTitleInput');
-            const noteContentInput = document.getElementById('noteContentInput');
-            const cancelNoteBtn = document.getElementById('cancelNoteBtn');
-            const saveNoteBtn = document.getElementById('saveNoteBtn');
-
-            // Verificar si ya hay configuración guardada
-            const savedUser = localStorage.getItem('safemesh_user');
+        // Inicialización del juego
+        function initGame(difficulty) {
+            gameState.difficulty = difficulty;
+            gameState.foundWords = [];
+            gameState.score = 0;
+            gameState.selectedCells = [];
+            gameState.timeLeft = 300;
             
-            // Inicializar tema después de verificar la configuración
-            if (state.darkMode) {
-                document.body.classList.add('dark-mode');
-                toggleThemeBtn.innerHTML = '<i class="fas fa-sun"></i>';
+            // Configurar dificultad
+            let gridSize, codeComplexity;
+            switch(difficulty) {
+                case 'easy':
+                    gridSize = 4;
+                    codeComplexity = 4; // Número de letras codificadas
+                    break;
+                case 'medium':
+                    gridSize = 5;
+                    codeComplexity = 6;
+                    break;
+                case 'hard':
+                    gridSize = 6;
+                    codeComplexity = 8;
+                    break;
+                default:
+                    gridSize = 5;
+                    codeComplexity = 6;
             }
-
-            // Inicializar base de datos IndexedDB
-            initDatabase();
-
-            // Configurar detección de estado de conexión
-            setupConnectionMonitoring();
-
-            if (savedUser) {
-                const userData = JSON.parse(savedUser);
-                initializeAppWithUser(userData);
+            
+            generateGrid(gridSize);
+            generateCode(codeComplexity);
+            updateUI();
+            
+            // Iniciar temporizador
+            if (gameState.timer) clearInterval(gameState.timer);
+            gameState.isGameActive = true;
+            gameState.timer = setInterval(updateTimer, 1000);
+        }
+        
+        function generateGrid(size) {
+            // Lógica para generar una cuadrícula de letras
+            // Para el ejemplo, usaremos letras aleatorias
+            gameState.grid = [];
+            const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            
+            for (let i = 0; i < size; i++) {
+                const row = [];
+                for (let j = 0; j < size; j++) {
+                    const randomIndex = Math.floor(Math.random() * letters.length);
+                    row.push(letters[randomIndex]);
+                }
+                gameState.grid.push(row);
+            }
+            
+            renderGrid();
+        }
+        
+        function generateCode(complexity) {
+            // Generar un código de sustitución
+            gameState.code = {};
+            const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            const symbols = ['@', '#', '$', '%', '&', '*', '?', '!', '§', '¶', '£', '¢', '¥', '€', '®', '©', '™', '±', '√', '∞', '≈', '≠', '≤', '≥', '÷', 'π'];
+            
+            // Seleccionar letras aleatorias para codificar
+            const lettersToEncode = [];
+            while (lettersToEncode.length < complexity) {
+                const randomLetter = letters[Math.floor(Math.random() * letters.length)];
+                if (!lettersToEncode.includes(randomLetter)) {
+                    lettersToEncode.push(randomLetter);
+                }
+            }
+            
+            // Asignar símbolos a las letras seleccionadas
+            lettersToEncode.forEach(letter => {
+                const randomSymbolIndex = Math.floor(Math.random() * symbols.length);
+                gameState.code[letter] = symbols[randomSymbolIndex];
+                symbols.splice(randomSymbolIndex, 1); // Eliminar el símbolo usado
+            });
+            
+            renderCodeKey();
+        }
+        
+        function renderGrid() {
+            const gridElement = document.getElementById('letter-grid');
+            gridElement.innerHTML = '';
+            gridElement.style.gridTemplateColumns = `repeat(${gameState.grid.length}, 1fr)`;
+            
+            gameState.grid.forEach((row, rowIndex) => {
+                row.forEach((letter, colIndex) => {
+                    const cell = document.createElement('div');
+                    cell.className = 'letter-cell';
+                    cell.dataset.row = rowIndex;
+                    cell.dataset.col = colIndex;
+                    
+                    // Mostrar letra codificada o normal según el código
+                    if (gameState.code[letter]) {
+                        cell.textContent = gameState.code[letter];
+                        cell.dataset.letter = letter; // Guardar la letra real como data attribute
+                    } else {
+                        cell.textContent = letter;
+                    }
+                    
+                    cell.addEventListener('click', () => selectCell(rowIndex, colIndex, cell));
+                    gridElement.appendChild(cell);
+                });
+            });
+        }
+        
+        function renderCodeKey() {
+            const codeKeyElement = document.getElementById('code-key');
+            codeKeyElement.innerHTML = '';
+            
+            Object.entries(gameState.code).forEach(([letter, symbol]) => {
+                const codeItem = document.createElement('div');
+                codeItem.className = 'code-item';
+                codeItem.innerHTML = `
+                    <span>${symbol}</span>
+                    <span>→ ?</span>
+                `;
+                codeKeyElement.appendChild(codeItem);
+            });
+        }
+        
+        function selectCell(row, col, cellElement) {
+            if (!gameState.isGameActive) return;
+            
+            const index = gameState.selectedCells.findIndex(cell => cell.row === row && cell.col === col);
+            
+            if (index !== -1) {
+                // Deseleccionar si ya está seleccionada
+                gameState.selectedCells.splice(index, 1);
+                cellElement.classList.remove('selected');
             } else {
-                showModal(configModal);
+                // Seleccionar la celda
+                gameState.selectedCells.push({ row, col });
+                cellElement.classList.add('selected');
             }
-
-            // Inicializar mapa
-            initMap();
-
-            // Configurar event listeners
-            toggleThemeBtn.addEventListener('click', toggleDarkMode);
-            sidebarToggle.addEventListener('click', toggleSidebar);
-            mobileOverlay.addEventListener('click', closeSidebar);
             
-            panelTabs.forEach(tab => {
-                tab.addEventListener('click', () => {
-                    const tabName = tab.getAttribute('data-tab');
-                    switchTab(tabName);
+            updateCurrentWord();
+        }
+        
+        function updateCurrentWord() {
+            const currentWordElement = document.getElementById('current-word');
+            let word = '';
+            
+            gameState.selectedCells.forEach(cell => {
+                const letter = gameState.grid[cell.row][cell.col];
+                word += letter;
+            });
+            
+            currentWordElement.textContent = `Palabra actual: ${word}`;
+        }
+        
+        function submitWord() {
+            let word = '';
+            
+            gameState.selectedCells.forEach(cell => {
+                const letter = gameState.grid[cell.row][cell.col];
+                word += letter;
+            });
+            
+            // Verificar si la palabra es válida
+            if (word.length < 3) {
+                alert('La palabra debe tener al menos 3 letras');
+                return;
+            }
+            
+            if (gameState.foundWords.includes(word)) {
+                alert('Ya encontraste esta palabra');
+                return;
+            }
+            
+            // Verificar contra el diccionario (simplificado)
+            if (wordList.includes(word)) {
+                // Palabra válida
+                gameState.foundWords.push(word);
+                gameState.score += calculateScore(word);
+                
+                // Marcar celdas como encontradas
+                gameState.selectedCells.forEach(cell => {
+                    const cellElement = document.querySelector(`.letter-cell[data-row="${cell.row}"][data-col="${cell.col}"]`);
+                    cellElement.classList.remove('selected');
+                    cellElement.classList.add('found');
                 });
-            });
-
-            sendMessageBtn.addEventListener('click', sendChatMessage);
-            messageInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') sendChatMessage();
-            });
-
-            connectToPeerBtn.addEventListener('click', connectToPeer);
-            copyPeerIdBtn.addEventListener('click', copyPeerId);
-            addNoteBtn.addEventListener('click', () => showModal(noteModal));
-            loadNotesBtn.addEventListener('click', loadNearbyNotes);
-            emergencyBtn.addEventListener('click', sendEmergencyAlert);
-            locateMeBtn.addEventListener('click', centerMapOnUser);
-            zoomInBtn.addEventListener('click', () => state.map.zoomIn());
-            zoomOutBtn.addEventListener('click', () => state.map.zoomOut());
-            refreshUsersBtn.addEventListener('click', refreshUsers);
-            refreshNotesBtn.addEventListener('click', refreshNotes);
-
-            // Modales
-            generateIDBtn.addEventListener('click', generateRandomID);
-            saveConfigBtn.addEventListener('click', saveConfiguration);
-            cancelNoteBtn.addEventListener('click', () => hideModal(noteModal));
-            saveNoteBtn.addEventListener('click', saveNote);
-
-            closeModalButtons.forEach(btn => {
-                btn.addEventListener('click', () => {
-                    hideModal(configModal);
-                    hideModal(noteModal);
-                });
-            });
-
-            // Context menu
-            document.addEventListener('contextmenu', (e) => {
-                if (e.target.closest('.user-item')) {
-                    e.preventDefault();
-                    showContextMenu(e, e.target.closest('.user-item'));
-                }
-            });
-
-            document.addEventListener('click', () => {
-                contextMenu.style.display = 'none';
-            });
-
-            // Funciones de UI
-            function toggleDarkMode() {
-                state.darkMode = !state.darkMode;
-                localStorage.setItem('darkMode', state.darkMode);
                 
-                if (state.darkMode) {
-                    document.body.classList.add('dark-mode');
-                    toggleThemeBtn.innerHTML = '<i class="fas fa-sun"></i>';
-                } else {
-                    document.body.classList.remove('dark-mode');
-                    toggleThemeBtn.innerHTML = '<i class="fas fa-moon"></i>';
-                }
-            }
-
-            function toggleSidebar() {
-                sidebar.classList.toggle('active');
-                mobileOverlay.classList.toggle('active');
-            }
-
-            function closeSidebar() {
-                sidebar.classList.remove('active');
-                mobileOverlay.classList.remove('active');
-            }
-
-            function switchTab(tabName) {
-                // Actualizar pestañas activas
-                panelTabs.forEach(tab => tab.classList.remove('active'));
-                tabPanes.forEach(pane => pane.classList.remove('active'));
-
-                // Activar la pestaña seleccionada
-                document.querySelector(`.panel-tab[data-tab="${tabName}"]`).classList.add('active');
-                document.getElementById(`${tabName}-tab`).classList.add('active');
-            }
-
-            function showModal(modal) {
-                modal.classList.add('active');
-            }
-
-            function hideModal(modal) {
-                modal.classList.remove('active');
-            }
-
-            function showNotification(message, type = '') {
-                notification.textContent = message;
-                notification.className = 'notification';
-                if (type) notification.classList.add(type);
-                notification.style.display = 'block';
-                
-                setTimeout(() => {
-                    notification.style.display = 'none';
-                }, 3000);
-            }
-
-            function showContextMenu(e, element) {
-                const peerId = element.getAttribute('data-peer-id');
-                const user = state.users.get(peerId);
-                
-                if (!user) return;
-                
-                contextMenu.innerHTML = `
-                    <div class="context-menu-item" data-action="center" data-peer-id="${peerId}">
-                        <i class="fas fa-map-marker-alt"></i>
-                        <span>Centrar en mapa</span>
-                    </div>
-                    <div class="context-menu-item" data-action="message" data-peer-id="${peerId}">
-                        <i class="fas fa-comment"></i>
-                        <span>Enviar mensaje</span>
-                    </div>
-                    <div class="context-menu-item" data-action="info" data-peer-id="${peerId}">
-                        <i class="fas fa-info-circle"></i>
-                        <span>Información</span>
-                    </div>
-                    <div class="context-menu-item" data-action="disconnect" data-peer-id="${peerId}">
-                        <i class="fas fa-unlink"></i>
-                        <span>Desconectar</span>
-                    </div>
-                `;
-                
-                contextMenu.style.display = 'block';
-                contextMenu.style.left = `${e.pageX}px`;
-                contextMenu.style.top = `${e.pageY}px`;
-
-                // Añadir event listeners a los items del menú
-                contextMenu.querySelectorAll('.context-menu-item').forEach(item => {
-                    item.addEventListener('click', handleContextMenuAction);
-                });
-            }
-
-            function handleContextMenuAction(e) {
-                const action = e.currentTarget.getAttribute('data-action');
-                const peerId = e.currentTarget.getAttribute('data-peer-id');
-                const user = state.users.get(peerId);
-                
-                if (!user) return;
-                
-                switch (action) {
-                    case 'center':
-                        if (user.lat && user.lng) {
-                            state.map.setView([user.lat, user.lng], 16);
-                            if (user.marker) user.marker.openPopup();
-                        }
-                        break;
-                    case 'message':
-                        switchTab('chat');
-                        messageInput.focus();
-                        messageInput.value = `@${user.name} `;
-                        break;
-                    case 'info':
-                        alert(`Usuario: ${user.name}\nID: ${peerId}\nDistancia: ${user.distance ? Math.round(user.distance) + 'm' : 'Desconocida'}`);
-                        break;
-                    case 'disconnect':
-                        if (state.connections.has(peerId)) {
-                            state.connections.get(peerId).close();
-                            showNotification(`Desconectado de ${user.name}`, 'info');
-                        }
-                        break;
-                }
-                
-                contextMenu.style.display = 'none';
-            }
-
-            // Funciones de inicialización
-            function initMap() {
-                state.map = L.map('map').setView([40.4168, -3.7038], 13);
-                
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '&copy; OpenStreetMap contributors'
-                }).addTo(state.map);
-
-                // Solicitar geolocalización
-                if (navigator.geolocation) {
-                    navigator.geolocation.getCurrentPosition(
-                        position => {
-                            const { latitude, longitude } = position.coords;
-                            state.map.setView([latitude, longitude], 15);
-                            
-                            // Marcador del usuario actual
-                            state.userMarker = L.marker([latitude, longitude])
-                                .addTo(state.map)
-                                .bindPopup('Tu ubicación')
-                                .openPopup();
-                                
-                            if (state.currentUser) {
-                                state.currentUser.lat = latitude;
-                                state.currentUser.lng = longitude;
-                            }
-                        },
-                        error => {
-                            console.error('Error obteniendo ubicación:', error);
-                            showNotification('No se pudo obtener tu ubicación. Asegúrate de tener activado el GPS.', 'error');
-                        }
-                    );
-                } else {
-                    showNotification('Tu navegador no soporta geolocalización.', 'error');
-                }
-            }
-
-            function centerMapOnUser() {
-                if (state.currentUser?.lat && state.currentUser?.lng) {
-                    state.map.setView([state.currentUser.lat, state.currentUser.lng], 16);
-                } else if (navigator.geolocation) {
-                    navigator.geolocation.getCurrentPosition(
-                        position => {
-                            const { latitude, longitude } = position.coords;
-                            state.map.setView([latitude, longitude], 16);
-                        },
-                        error => {
-                            showNotification('No se pudo obtener la ubicación', 'error');
-                        }
-                    );
-                }
-            }
-
-            function generateRandomID() {
-                const randomID = 'user_' + Math.random().toString(36).substr(2, 9);
-                userIDInput.value = randomID;
-            }
-
-            function saveConfiguration() {
-                const name = userNameInput.value.trim();
-                const id = userIDInput.value.trim() || 'user_' + Math.random().toString(36).substr(2, 9);
-                
-                if (!name) {
-                    showNotification('Por favor, introduce un nombre válido', 'error');
-                    return;
-                }
-                
-                const userData = {
-                    id: id,
-                    name: name,
-                    color: userColors[Math.floor(Math.random() * userColors.length)]
-                };
-                
-                localStorage.setItem('safemesh_user', JSON.stringify(userData));
-                hideModal(configModal);
-                initializeAppWithUser(userData);
-            }
-
-            function initializeAppWithUser(userData) {
-                state.currentUser = userData;
+                // Añadir a la lista de palabras encontradas
+                const foundWordsList = document.getElementById('found-words');
+                const listItem = document.createElement('li');
+                listItem.textContent = word;
+                foundWordsList.appendChild(listItem);
                 
                 // Actualizar UI
-                userAvatar.textContent = userData.name.charAt(0).toUpperCase();
-                userAvatar.style.backgroundColor = userData.color;
-                userName.textContent = userData.name;
-                userId.textContent = `ID: ${userData.id}`;
+                updateUI();
                 
-                // Conectar automáticamente
-                connectMesh();
+                // Revelar letras en el código
+                revealLettersInCode(word);
+                
+                // Limpiar selección
+                gameState.selectedCells = [];
+                updateCurrentWord();
+            } else {
+                alert('Palabra no válida');
             }
-
-            function connectMesh() {
-                if (!state.currentUser) return;
-                
-                updateStatus('connecting', 'Conectando...');
-                
-                // Crear instancia de Peer
-                state.peer = new Peer(state.currentUser.id, config.peerConfig);
-                
-                state.peer.on('open', (id) => {
-                    console.log('Conectado con ID: ', id);
-                    updateStatus('connected', 'Conectado');
-                    state.meshActive = true;
-                    state.reconnectAttempts = 0;
-                    myPeerIdSpan.textContent = id;
-                    
-                    // Iniciar seguimiento de ubicación
-                    startLocationTracking();
-                    
-                    showNotification('Red Mesh activada', 'success');
-                });
-                
-                state.peer.on('connection', (conn) => {
-                    console.log('Conexión entrante de: ', conn.peer);
-                    setupConnection(conn);
-                });
-                
-                state.peer.on('error', (err) => {
-                    console.error('Error de PeerJS: ', err);
-                    
-                    if (err.type === 'peer-unavailable') {
-                        showNotification('Usuario no disponible', 'warning');
-                    } else {
-                        showNotification('Error de conexión: ' + err.type, 'error');
-                    }
-                    
-                    updateStatus('disconnected', 'Desconectado');
-                    
-                    // Intentar reconectar después de un tiempo
-                    attemptReconnect();
-                });
-                
-                state.peer.on('disconnected', () => {
-                    console.log('Conexión perdida, intentando reconectar...');
-                    updateStatus('connecting', 'Reconectando...');
-                    showNotification('Conexión perdida. Reconectando...', 'warning');
-                    state.peer.reconnect();
-                });
-                
-                state.peer.on('close', () => {
-                    console.log('Peer cerrado');
-                    disconnectMesh();
-                });
+        }
+        
+        function calculateScore(word) {
+            // Puntuación basada en longitud de palabra y dificultad
+            const baseScore = word.length * 10;
+            let multiplier = 1;
+            
+            switch(gameState.difficulty) {
+                case 'medium': multiplier = 1.5; break;
+                case 'hard': multiplier = 2; break;
             }
-
-            function attemptReconnect() {
-                if (!state.meshActive) return;
-                
-                const delay = Math.min(
-                    config.reconnectBaseDelay * Math.pow(2, state.reconnectAttempts),
-                    config.reconnectMaxDelay
-                );
-                
-                state.reconnectAttempts++;
-                
-                setTimeout(() => {
-                    if (state.meshActive) {
-                        showNotification(`Intentando reconectar (intento ${state.reconnectAttempts})`, 'info');
-                        connectMesh();
-                    }
-                }, delay);
-            }
-
-            function setupConnection(conn) {
-                conn.on('open', function() {
-                    console.log('Conexión establecida con: ', conn.peer);
-                    
-                    // Crear canal de datos
-                    const dataChannel = conn;
-                    state.dataChannels.set(conn.peer, dataChannel);
-                    state.connections.set(conn.peer, conn);
-                    
-                    // Solicitar información del usuario conectado
-                    dataChannel.send(JSON.stringify({
-                        type: 'user-info',
-                        user: state.currentUser
-                    }));
-                    
-                    // Enviar ubicación actual
-                    if (state.currentUser.lat && state.currentUser.lng) {
-                        sendLocationUpdate();
-                    }
-                    
-                    // Enviar notas existentes
-                    if (state.notes.length > 0) {
-                        dataChannel.send(JSON.stringify({
-                            type: 'notes',
-                            notes: state.notes
-                        }));
-                    }
-                    
-                    // Enviar archivos existentes
-                    if (state.files.length > 0) {
-                        dataChannel.send(JSON.stringify({
-                            type: 'files',
-                            files: state.files
-                        }));
-                    }
-                    
-                    showNotification('Conectado con ' + conn.peer, 'success');
-                });
-                
-                conn.on('data', function(data) {
-                    try {
-                        const message = JSON.parse(data);
-                        handlePeerMessage(message, conn.peer);
-                    } catch (e) {
-                        console.error('Error parsing message: ', e);
-                    }
-                });
-                
-                conn.on('close', function() {
-                    console.log('Conexión cerrada con: ', conn.peer);
-                    removeUser(conn.peer);
-                    state.dataChannels.delete(conn.peer);
-                    state.connections.delete(conn.peer);
-                    showNotification('Desconectado de ' + conn.peer, 'info');
-                });
-                
-                conn.on('error', function(err) {
-                    console.error('Error en conexión: ', err);
-                    showNotification('Error con ' + conn.peer + ': ' + err.message, 'error');
-                });
-            }
-
-            function connectToPeer() {
-                const remoteId = remotePeerIdInput.value.trim();
-                
-                if (!remoteId) {
-                    showNotification('Por favor, ingresa un ID válido', 'error');
-                    return;
-                }
-                
-                if (remoteId === state.peer.id) {
-                    showNotification('No puedes conectarte a ti mismo', 'error');
-                    return;
-                }
-                
-                if (state.connections.has(remoteId)) {
-                    showNotification('Ya estás conectado a este usuario', 'info');
-                    return;
-                }
-                
-                try {
-                    const conn = state.peer.connect(remoteId, { reliable: true });
-                    setupConnection(conn);
-                    remotePeerIdInput.value = '';
-                } catch (err) {
-                    console.error('Error al conectar: ', err);
-                    showNotification('Error al conectar: ' + err.message, 'error');
-                }
-            }
-
-            function copyPeerId() {
-                navigator.clipboard.writeText(state.peer.id)
-                    .then(() => {
-                        showNotification('ID copiado al portapapeles', 'success');
-                    })
-                    .catch(err => {
-                        console.error('Error al copiar: ', err);
-                        showNotification('Error al copiar ID', 'error');
-                    });
-            }
-
-            function handlePeerMessage(message, peerId) {
-                switch (message.type) {
-                    case 'user-info':
-                        addUser(message.user, peerId);
-                        break;
-                    case 'location':
-                        updateUserLocation(peerId, message.lat, message.lng);
-                        break;
-                    case 'chat':
-                        decryptMessage(message).then(decrypted => {
-                            displayChatMessage(decrypted);
-                        }).catch(err => {
-                            console.error('Error decrypting message:', err);
-                            displayChatMessage(message); // Mostrar sin decryptar
-                        });
-                        break;
-                    case 'emergency':
-                        handleEmergencyAlert(message);
-                        break;
-                    case 'note':
-                        addNote(message.note);
-                        break;
-                    case 'notes':
-                        if (Array.isArray(message.notes)) {
-                            message.notes.forEach(note => addNote(note));
-                        }
-                        break;
-                    case 'file':
-                        receiveFile(message.file);
-                        break;
-                    case 'files':
-                        if (Array.isArray(message.files)) {
-                            message.files.forEach(file => receiveFile(file));
-                        }
-                        break;
-                    case 'file-request':
-                        sendFile(message.fileId, peerId);
-                        break;
-                    case 'file-chunk':
-                        receiveFileChunk(message);
-                        break;
-                    default:
-                        console.log('Mensaje desconocido: ', message);
-                }
-            }
-
-            function disconnectMesh() {
-                // Cerrar todas las conexiones
-                state.connections.forEach(conn => {
-                    conn.close();
-                });
-                
-                // Cerrar peer
-                if (state.peer) {
-                    state.peer.destroy();
-                    state.peer = null;
-                }
-                
-                // Limpiar datos
-                state.connections.clear();
-                state.dataChannels.clear();
-                
-                // Limpiar usuarios
-                state.users.forEach(user => {
-                    if (user.marker) state.map.removeLayer(user.marker);
-                });
-                state.users.clear();
-                updateUsersListUI();
-                
-                // Detener seguimiento de ubicación
-                stopLocationTracking();
-                
-                // Actualizar UI
-                updateStatus('disconnected', 'Desconectado');
-                state.meshActive = false;
-                
-                showNotification('Red Mesh desactivada', 'info');
-            }
-
-            function startLocationTracking() {
-                if (navigator.geolocation) {
-                    state.watchId = navigator.geolocation.watchPosition(
-                        position => {
-                            const { latitude, longitude } = position.coords;
-                            
-                            // Actualizar marcador del usuario
-                            if (state.userMarker) {
-                                state.userMarker.setLatLng([latitude, longitude]);
-                                state.map.panTo([latitude, longitude]);
-                            }
-                            
-                            state.currentUser.lat = latitude;
-                            state.currentUser.lng = longitude;
-                            
-                            // Enviar ubicación a través de la red mesh (con throttling)
-                            sendLocationUpdate();
-                            
-                            // Comprobar proximidad con otros usuarios
-                            checkProximity();
-                        },
-                        error => {
-                            console.error('Error en seguimiento de ubicación:', error);
-                        },
-                        {
-                            enableHighAccuracy: true,
-                            timeout: 10000,
-                            maximumAge: 30000
-                        }
-                    );
-                }
-            }
-
-            function sendLocationUpdate() {
-                const now = Date.now();
-                
-                if (now - state.lastLocationUpdate > config.locationUpdateThrottle) {
-                    broadcastLocation(state.currentUser.lat, state.currentUser.lng);
-                    state.lastLocationUpdate = now;
-                }
-            }
-
-            function stopLocationTracking() {
-                if (state.watchId && navigator.geolocation) {
-                    navigator.geolocation.clearWatch(state.watchId);
-                    state.watchId = null;
-                }
-            }
-
-            function broadcastLocation(lat, lng) {
-                if (!state.meshActive) return;
-                
-                // Enviar a través de los canales de datos
-                state.dataChannels.forEach((dataChannel, peerId) => {
-                    if (dataChannel.open) {
-                        dataChannel.send(JSON.stringify({
-                            type: 'location',
-                            lat: lat,
-                            lng: lng,
-                            userId: state.currentUser.id
-                        }));
-                    }
-                });
-            }
-
-            function checkProximity() {
-                state.users.forEach(user => {
-                    if (user.lat && user.lng && state.currentUser.lat && state.currentUser.lng) {
-                        const distance = calculateDistance(
-                            state.currentUser.lat, state.currentUser.lng,
-                            user.lat, user.lng
-                        );
-                        
-                        user.distance = distance;
-                        
-                        // Si está dentro del rango de alerta, activar vibración
-                        if (distance <= config.proximityAlertDistance) {
-                            triggerVibration();
-                            showNotification(`${user.name} está a ${Math.round(distance)} metros`, 'warning');
-                        }
-                    }
-                });
-                
-                updateUsersListUI();
-            }
-
-            function calculateDistance(lat1, lon1, lat2, lon2) {
-                // Fórmula de Haversine para calcular distancia entre dos puntos
-                const R = 6371000; // Radio de la Tierra en metros
-                const dLat = (lat2 - lat1) * Math.PI / 180;
-                const dLon = (lon2 - lon1) * Math.PI / 180;
-                
-                const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                          Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                          Math.sin(dLon/2) * Math.sin(dLon/2);
-                
-                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-                return R * c;
-            }
-
-            function triggerVibration() {
-                // Activar vibración si el dispositivo lo soporta
-                if (navigator.vibrate) {
-                    navigator.vibrate([200, 100, 200]);
-                }
-                
-                // Efecto visual de vibración
-                emergencyBtn.classList.add('vibrate');
-                setTimeout(() => {
-                    emergencyBtn.classList.remove('vibrate');
-                }, 1000);
-            }
-
-            function sendEmergencyAlert() {
-                if (!state.meshActive) {
-                    showNotification('Activa la red mesh primero para enviar una alerta', 'error');
-                    return;
-                }
-                
-                const confirmation = confirm('¿Estás seguro de que quieres enviar una alerta de emergencia?');
-                
-                if (confirmation) {
-                    // Enviar alerta a través de los canales de datos
-                    state.dataChannels.forEach((dataChannel, peerId) => {
-                        if (dataChannel.open) {
-                            dataChannel.send(JSON.stringify({
-                                type: 'emergency',
-                                from: state.currentUser.id,
-                                userName: state.currentUser.name,
-                                lat: state.currentUser.lat,
-                                lng: state.currentUser.lng,
-                                timestamp: Date.now()
-                            }));
+            
+            return Math.floor(baseScore * multiplier);
+        }
+        
+        function revealLettersInCode(word) {
+            // Revelar letras en la clave de código
+            const codeItems = document.querySelectorAll('.code-item');
+            
+            for (let i = 0; i < word.length; i++) {
+                const letter = word[i];
+                if (gameState.code[letter]) {
+                    // Encontrar el elemento correspondiente en la clave
+                    Array.from(codeItems).forEach(item => {
+                        if (item.textContent.includes(gameState.code[letter])) {
+                            item.innerHTML = `
+                                <span>${gameState.code[letter]}</span>
+                                <span>→ ${letter}</span>
+                            `;
                         }
                     });
-                    
-                    // Activar vibración
-                    triggerVibration();
-                    
-                    showNotification('¡Alerta de emergencia enviada!', 'error');
                 }
             }
-
-            function handleEmergencyAlert(alert) {
-                // Mostrar alerta emergente
-                window.alert(`¡ALERTA DE EMERGENCIA de ${alert.userName}!`);
-                
-                // Centrar mapa en la ubicación de la emergencia
-                if (alert.lat && alert.lng) {
-                    state.map.setView([alert.lat, alert.lng], 16);
-                    
-                    // Añadir marcador especial para la emergencia
-                    const emergencyMarker = L.marker([alert.lat, alert.lng], {
-                        icon: L.divIcon({
-                            className: 'emergency-marker',
-                            html: '<div style="background-color: #e74c3c; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 0 5px #e74c3c80;"></div>',
-                            iconSize: [20, 20],
-                            iconAnchor: [10, 10]
-                        })
-                    })
-                    .addTo(state.map)
-                    .bindPopup(`<strong>EMERGENCIA:</strong> ${alert.userName}`)
-                    .openPopup();
-                    
-                    // Eliminar marcador después de 30 segundos
-                    setTimeout(() => {
-                        state.map.removeLayer(emergencyMarker);
-                    }, 30000);
-                }
-                
-                // Activar vibración
-                triggerVibration();
+        }
+        
+        function updateUI() {
+            document.getElementById('words-found').textContent = gameState.foundWords.length;
+            document.getElementById('score').textContent = gameState.score;
+        }
+        
+        function updateTimer() {
+            if (!gameState.isGameActive) return;
+            
+            gameState.timeLeft--;
+            
+            const minutes = Math.floor(gameState.timeLeft / 60);
+            const seconds = gameState.timeLeft % 60;
+            document.getElementById('time').textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            if (gameState.timeLeft <= 0) {
+                endGame();
             }
-
-            function sendChatMessage() {
-                const message = messageInput.value.trim();
+        }
+        
+        function endGame() {
+            gameState.isGameActive = false;
+            clearInterval(gameState.timer);
+            
+            document.getElementById('final-score').textContent = gameState.score;
+            document.getElementById('final-words').textContent = gameState.foundWords.length;
+            document.getElementById('end-message').textContent = '¡Tiempo completado!';
+            document.getElementById('end-modal').style.display = 'flex';
+        }
+        
+        function provideHint() {
+            if (!gameState.isGameActive) return;
+            
+            // Encontrar una palabra no descubierta
+            const undiscoveredWords = wordList.filter(word => 
+                !gameState.foundWords.includes(word) && 
+                canWordBeFormed(word)
+            );
+            
+            if (undiscoveredWords.length > 0) {
+                const randomWord = undiscoveredWords[Math.floor(Math.random() * undiscoveredWords.length)];
+                alert(`Pista: Intenta encontrar la palabra "${randomWord}"`);
                 
-                if (!message) return;
-                
-                // Crear objeto de mensaje
-                const chatMessage = {
-                    type: 'chat',
-                    from: state.currentUser.id,
-                    userName: state.currentUser.name,
-                    message: message,
-                    timestamp: Date.now()
-                };
-                
-                // Encriptar mensaje
-                encryptMessage(chatMessage).then(encrypted => {
-                    // Enviar a través de los canales de datos
-                    state.dataChannels.forEach((dataChannel, peerId) => {
-                        if (dataChannel.open) {
-                            dataChannel.send(JSON.stringify(encrypted));
-                        }
-                    });
-                    
-                    // Mostrar mensaje localmente
-                    displayChatMessage(chatMessage);
-                    
-                    // Guardar en historial
-                    saveMessageToHistory(chatMessage);
-                    
-                    // Limpiar campo de entrada
-                    messageInput.value = '';
-                }).catch(err => {
-                    console.error('Error encrypting message:', err);
-                    showNotification('Error al encriptar mensaje', 'error');
-                });
+                // Penalizar por usar pista
+                gameState.score = Math.max(0, gameState.score - 50);
+                updateUI();
+            } else {
+                alert('¡Ya has encontrado todas las palabras posibles!');
             }
-
-            function displayChatMessage(message) {
-                const messageElement = document.createElement('div');
-                messageElement.className = 'message';
-                
-                const time = new Date(message.timestamp).toLocaleTimeString();
-                
-                messageElement.innerHTML = `
-                    <div class="message-sender">${message.userName}</div>
-                    <div class="message-content">${message.message}</div>
-                    <div class="message-time">${time}</div>
-                `;
-                
-                chatMessages.appendChild(messageElement);
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-            }
-
-            function saveNote() {
-                const title = noteTitleInput.value;
-                const content = noteContentInput.value;
-                
-                if (!title || !content) return;
-                
-                const note = {
-                    id: generateId(),
-                    title: title,
-                    content: content,
-                    lat: state.currentUser.lat,
-                    lng: state.currentUser.lng,
-                    userId: state.currentUser.id,
-                    userName: state.currentUser.name,
-                    timestamp: Date.now()
-                };
-                
-                // Añadir nota al array
-                addNote(note);
-                
-                // Guardar en base de datos
-                saveNoteToDB(note);
-                
-                // Enviar nota a otros usuarios
-                broadcastNote(note);
-                
-                // Cerrar modal y limpiar formulario
-                hideModal(noteModal);
-                noteTitleInput.value = '';
-                noteContentInput.value = '';
-                
-                showNotification('Nota guardada y compartida', 'success');
-            }
-
-            function addNote(note) {
-                // Evitar duplicados
-                if (state.notes.some(n => n.id === note.id)) return;
-                
-                state.notes.push(note);
-                
-                // Añadir marcador en el mapa
-                addNoteMarker(note);
-                
-                // Actualizar lista de notas
-                updateNotesList();
-            }
-
-            function addNoteMarker(note) {
-                // Evitar duplicados de marcadores
-                if (note.marker) return;
-                
-                note.marker = L.marker([note.lat, note.lng], {
-                    icon: L.divIcon({
-                        className: 'note-marker',
-                        html: '<div style="background-color: #f39c12; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 0 3px #f39c1280;"></div>',
-                        iconSize: [16, 16],
-                        iconAnchor: [8, 8]
-                    })
-                })
-                .addTo(state.map)
-                .bindPopup(`
-                    <strong>${note.title}</strong>
-                    <p>${note.content}</p>
-                    <small>Por: ${note.userName}</small>
-                `);
-            }
-
-            function updateNotesList() {
-                notesList.innerHTML = '';
-                
-                state.notes.forEach(note => {
-                    const noteElement = document.createElement('li');
-                    noteElement.className = 'note-item';
-                    
-                    noteElement.innerHTML = `
-                        <i class="fas fa-sticky-note opacity-70"></i>
-                        <div class="user-details">
-                            <div class="note-title">${note.title}</div>
-                            <div class="note-preview">${note.content}</div>
-                        </div>
-                    `;
-                    
-                    noteElement.addEventListener('click', () => {
-                        state.map.setView([note.lat, note.lng], 16);
-                        if (note.marker) note.marker.openPopup();
-                    });
-                    
-                    notesList.appendChild(noteElement);
-                });
-            }
-
-            function loadNearbyNotes() {
-                if (!state.currentUser.lat || !state.currentUser.lng) {
-                    showNotification('Esperando obtener tu ubicación...', 'error');
-                    return;
-                }
-                
-                // Filtrar notas cercanas
-                const nearbyNotes = state.notes.filter(note => {
-                    const distance = calculateDistance(
-                        state.currentUser.lat, state.currentUser.lng,
-                        note.lat, note.lng
-                    );
-                    
-                    return distance <= config.noteVisibilityDistance;
-                });
-                
-                // Mostrar solo notas cercanas
-                notesList.innerHTML = '';
-                
-                if (nearbyNotes.length === 0) {
-                    notesList.innerHTML = '<li class="note-item"><i class="fas fa-sticky-note opacity-70"></i><div class="user-details"><div class="note-title">No hay notas cercanas</div></div></li>';
-                    return;
-                }
-                
-                nearbyNotes.forEach(note => {
-                    const noteElement = document.createElement('li');
-                    noteElement.className = 'note-item';
-                    
-                    noteElement.innerHTML = `
-                        <i class="fas fa-sticky-note opacity-70"></i>
-                        <div class="user-details">
-                            <div class="note-title">${note.title}</div>
-                            <div class="note-preview">${note.content}</div>
-                        </div>
-                    `;
-                    
-                    noteElement.addEventListener('click', () => {
-                        state.map.setView([note.lat, note.lng], 16);
-                        if (note.marker) note.marker.openPopup();
-                    });
-                    
-                    notesList.appendChild(noteElement);
-                });
-                
-                showNotification(`Mostrando ${nearbyNotes.length} notas cercanas`, 'success');
-            }
-
-            function broadcastNote(note) {
-                if (!state.meshActive) return;
-                
-                // Enviar a través de los canales de datos
-                state.dataChannels.forEach((dataChannel, peerId) => {
-                    if (dataChannel.open) {
-                        dataChannel.send(JSON.stringify({
-                            type: 'note',
-                            note: note
-                        }));
-                    }
-                });
-            }
-
-            function receiveFile(fileData) {
-                // Evitar duplicados
-                if (state.files.some(f => f.id === fileData.id)) return;
-                
-                state.files.push(fileData);
-                showNotification(`Archivo recibido: ${fileData.name}`, 'success');
-            }
-
-            function receiveFileChunk(chunkData) {
-                console.log('Received file chunk:', chunkData);
-            }
-
-            function addUser(user, peerId) {
-                // Asignar color si no tiene
-                if (!user.color) {
-                    user.color = userColors[state.users.size % userColors.length];
-                }
-                
-                // Añadir a la lista de usuarios
-                state.users.set(peerId, user);
-                
-                // Crear marcador para el usuario
-                if (user.lat && user.lng) {
-                    user.marker = L.marker([user.lat, user.lng], {
-                        icon: L.divIcon({
-                            className: 'user-marker',
-                            html: `<div style="background-color: ${user.color}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 0 3px ${user.color}40;"></div>`,
-                            iconSize: [12, 12],
-                            iconAnchor: [6, 6]
-                        })
-                    })
-                    .addTo(state.map)
-                    .bindPopup(user.name);
-                }
-                
-                updateUsersListUI();
-            }
-
-            function updateUserLocation(peerId, lat, lng) {
-                const user = state.users.get(peerId);
-                
-                if (user) {
-                    user.lat = lat;
-                    user.lng = lng;
-                    
-                    if (user.marker) {
-                        user.marker.setLatLng([lat, lng]);
-                    } else {
-                        // Crear marcador si no existe
-                        user.marker = L.marker([lat, lng], {
-                            icon: L.divIcon({
-                                className: 'user-marker',
-                                html: `<div style="background-color: ${user.color}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 0 3px ${user.color}40;"></div>`,
-                                iconSize: [12, 12],
-                                iconAnchor: [6, 6]
-                            })
-                        })
-                        .addTo(state.map)
-                        .bindPopup(user.name);
-                    }
-                    
-                    // Actualizar distancia
-                    if (state.currentUser.lat && state.currentUser.lng) {
-                        user.distance = calculateDistance(
-                            state.currentUser.lat, state.currentUser.lng,
-                            lat, lng
-                        );
-                    }
-                    
-                    updateUsersListUI();
-                }
-            }
-
-            function removeUser(peerId) {
-                const user = state.users.get(peerId);
-                
-                if (user && user.marker) {
-                    state.map.removeLayer(user.marker);
-                }
-                
-                state.users.delete(peerId);
-                updateUsersListUI();
-            }
-
-            function updateUsersListUI() {
-                usersList.innerHTML = '';
-                
-                if (state.users.size === 0) {
-                    usersList.innerHTML = '<li class="user-item"><div class="user-color" style="background-color: #e74c3c;"></div><div class="user-details"><div class="user-displayname">No hay usuarios conectados</div></div></li>';
-                    return;
-                }
-                
-                state.users.forEach((user, peerId) => {
-                    const userElement = document.createElement('li');
-                    userElement.className = 'user-item';
-                    userElement.setAttribute('data-peer-id', peerId);
-                    
-                    const distanceText = user.distance ? `${Math.round(user.distance)}m` : 'Desconocida';
-                    
-                    userElement.innerHTML = `
-                        <div class="user-color" style="background-color: ${user.color}"></div>
-                        <div class="user-details">
-                            <div class="user-displayname">${user.name}</div>
-                            <div class="user-distance">${distanceText}</div>
-                        </div>
-                    `;
-                    
-                    userElement.addEventListener('click', () => {
-                        if (user.lat && user.lng) {
-                            state.map.setView([user.lat, user.lng], 16);
-                            if (user.marker) user.marker.openPopup();
-                        }
-                    });
-                    
-                    usersList.appendChild(userElement);
-                });
-            }
-
-            function refreshUsers() {
-                updateUsersListUI();
-                showNotification('Lista de usuarios actualizada', 'success');
-            }
-
-            function refreshNotes() {
-                updateNotesList();
-                showNotification('Lista de notas actualizada', 'success');
-            }
-
-            function updateStatus(status, text) {
-                statusIndicator.className = 'status-indicator ' + status;
-                statusText.textContent = text;
-            }
-
-            function setupConnectionMonitoring() {
-                window.addEventListener('online', () => {
-                    state.online = true;
-                    showNotification('Conexión a Internet restablecida', 'success');
-                });
-                
-                window.addEventListener('offline', () => {
-                    state.online = false;
-                    updateStatus('disconnected', 'Sin conexión a Internet');
-                    showNotification('Sin conexión a Internet - Modo offline', 'warning');
-                });
-            }
-
-            function initDatabase() {
-                const request = indexedDB.open('SafeMeshDB', 1);
-                
-                request.onerror = (event) => {
-                    console.error('Error opening database:', event);
-                };
-                
-                request.onupgradeneeded = (event) => {
-                    const db = event.target.result;
-                    
-                    // Crear object store para mensajes
-                    if (!db.objectStoreNames.contains('messages')) {
-                        db.createObjectStore('messages', { keyPath: 'id' });
-                    }
-                    
-                    // Crear object store para notas
-                    if (!db.objectStoreNames.contains('notes')) {
-                        db.createObjectStore('notes', { keyPath: 'id' });
-                    }
-                    
-                    // Crear object store para archivos
-                    if (!db.objectStoreNames.contains('files')) {
-                        db.createObjectStore('files', { keyPath: 'id' });
-                    }
-                };
-                
-                request.onsuccess = (event) => {
-                    state.db = event.target.result;
-                    console.log('Database initialized successfully');
-                };
-            }
-
-            function saveMessageToHistory(message) {
-                if (!state.db) return;
-                
-                const transaction = state.db.transaction(['messages'], 'readwrite');
-                const store = transaction.objectStore('messages');
-                store.add(message);
-            }
-
-            function saveNoteToDB(note) {
-                if (!state.db) return;
-                
-                const transaction = state.db.transaction(['notes'], 'readwrite');
-                const store = transaction.objectStore('notes');
-                store.add(note);
-            }
-
-            async function generateEncryptionKey() {
-                try {
-                    state.encryptionKey = await crypto.subtle.generateKey(
-                        {
-                            name: 'AES-GCM',
-                            length: 256,
-                        },
-                        true,
-                        ['encrypt', 'decrypt']
-                    );
-                } catch (err) {
-                    console.error('Error generating encryption key:', err);
-                }
-            }
-
-            async function encryptMessage(message) {
-                if (!state.encryptionKey) {
-                    return message;
-                }
-                
-                try {
-                    const encoder = new TextEncoder();
-                    const encoded = encoder.encode(JSON.stringify(message));
-                    
-                    const iv = crypto.getRandomValues(new Uint8Array(12));
-                    const encrypted = await crypto.subtle.encrypt(
-                        {
-                            name: 'AES-GCM',
-                            iv: iv
-                        },
-                        state.encryptionKey,
-                        encoded
-                    );
-                    
-                    return {
-                        type: 'chat-encrypted',
-                        iv: Array.from(iv),
-                        data: Array.from(new Uint8Array(encrypted))
-                    };
-                } catch (err) {
-                    console.error('Error encrypting message:', err);
-                    return message;
-                }
-            }
-
-            async function decryptMessage(encryptedMessage) {
-                if (encryptedMessage.type !== 'chat-encrypted' || !state.encryptionKey) {
-                    return encryptedMessage;
-                }
-                
-                try {
-                    const iv = new Uint8Array(encryptedMessage.iv);
-                    const data = new Uint8Array(encryptedMessage.data);
-                    
-                    const decrypted = await crypto.subtle.decrypt(
-                        {
-                            name: 'AES-GCM',
-                            iv: iv
-                        },
-                        state.encryptionKey,
-                        data
-                    );
-                    
-                    const decoder = new TextDecoder();
-                    const decoded = decoder.decode(decrypted);
-                    return JSON.parse(decoded);
-                } catch (err) {
-                    console.error('Error decrypting message:', err);
-                    throw err;
-                }
-            }
-
-            function generateId() {
-                return Math.random().toString(36).substring(2, 9);
-            }
+        }
+        
+        function canWordBeFormed(word) {
+            // Verificar si una palabra puede formarse en el tablero actual
+            // Esta es una implementación simplificada
+            return true;
+        }
+        
+        // Event listeners
+        document.querySelectorAll('.difficulty-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const difficulty = e.target.dataset.difficulty;
+                document.getElementById('start-modal').style.display = 'none';
+                initGame(difficulty);
+            });
+        });
+        
+        document.getElementById('submit-word').addEventListener('click', submitWord);
+        document.getElementById('clear-selection').addEventListener('click', () => {
+            // Limpiar selección
+            document.querySelectorAll('.letter-cell.selected').forEach(cell => {
+                cell.classList.remove('selected');
+            });
+            gameState.selectedCells = [];
+            updateCurrentWord();
+        });
+        
+        document.getElementById('hint').addEventListener('click', provideHint);
+        document.getElementById('play-again').addEventListener('click', () => {
+            document.getElementById('end-modal').style.display = 'none';
+            document.getElementById('start-modal').style.display = 'flex';
+        });
+        
+        // Inicializar juego al cargar
+        window.addEventListener('load', () => {
+            document.getElementById('start-modal').style.display = 'flex';
         });
     </script>
 </body>
